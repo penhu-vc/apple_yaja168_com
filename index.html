@@ -418,7 +418,6 @@ function expiryBadgeHTML(a) {
 function cardHTML(a) {
   const chips = [];
   if (a.sharedBy)  chips.push(`<span class="chip"><span class="chip-icon">👤</span>${esc(a.sharedBy)}</span>`);
-  if (a.itemCount) chips.push(`<span class="chip"><span class="chip-icon">📁</span>${esc(a.itemCount)} 個項目</span>`);
   if (a.mediaType) chips.push(`<span class="chip"><span class="chip-icon">🎬</span>${esc(a.mediaType)}</span>`);
   if (!chips.length && !a.expiryDate) chips.push(`<span class="chip" style="color:var(--sub)">新增 ${formatDate(a.createdAt)}</span>`);
 
