@@ -47,24 +47,34 @@
   .view-btn { padding: 8px 14px; border: none; background: none; cursor: pointer; color: var(--sub); transition: all .15s; }
   .view-btn.active { background: var(--primary); color: #fff; }
 
-  .albums-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+  .albums-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 220px)); gap: 16px; }
   .album-card { background: var(--card); border-radius: var(--r); box-shadow: var(--shadow); overflow: hidden; transition: transform .2s, box-shadow .2s; display: flex; flex-direction: column; }
   .album-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.12); }
-  .album-body { padding: 18px; flex: 1; display: flex; flex-direction: column; gap: 10px; }
-  .album-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
-  .album-name { font-size: 16px; font-weight: 600; line-height: 1.3; flex: 1; }
-  .expiry-badge { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 20px; white-space: nowrap; flex-shrink: 0; }
+  .album-body { padding: 12px; flex: 1; display: flex; flex-direction: column; gap: 8px; }
+  .album-header { display: flex; flex-direction: column; gap: 4px; }
+  .album-name { font-size: 14px; font-weight: 600; line-height: 1.3; }
+  .expiry-badge { font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 20px; white-space: nowrap; display: inline-flex; align-items: center; gap: 3px; }
   .expiry-badge.ok    { background: #e6f9ee; color: #1c8a4e; }
   .expiry-badge.soon  { background: #fff3e0; color: #e65100; }
   .expiry-badge.urgent{ background: #fde8e8; color: var(--danger); }
-  .expiry-badge.none  { background: var(--bg); color: var(--sub); }
+  .expiry-badge.none  { display: none; }
+  /* Badge & tags overlay on thumb */
+  .album-thumb-wrap { position: relative; }
+  .album-thumb-wrap .expiry-badge { position: absolute; top: 8px; right: 8px; backdrop-filter: blur(6px); background: rgba(255,255,255,.85); color: #555; }
+  .thumb-tags { position: absolute; bottom: 8px; left: 8px; display: flex; flex-wrap: wrap; gap: 4px; }
+  .thumb-tag { padding: 2px 8px; border-radius: 20px; background: rgba(0,0,0,.45); backdrop-filter: blur(4px); color: #fff; font-size: 11px; font-weight: 500; cursor: pointer; }
   .album-chips { display: flex; gap: 8px; flex-wrap: wrap; }
   .chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 8px; background: var(--bg); border: 1px solid var(--border); font-size: 12px; color: var(--text); }
   .chip-icon { font-size: 13px; }
   .album-desc { font-size: 13px; color: var(--sub); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.5; }
   .album-tags { display: flex; flex-wrap: wrap; gap: 6px; }
   .tag { padding: 3px 10px; border-radius: 20px; background: var(--tag-bg); color: var(--tag-text); font-size: 12px; font-weight: 500; cursor: pointer; }
-  .album-actions { display: flex; gap: 8px; margin-top: auto; padding-top: 4px; }
+  .album-thumb { width: 100%; aspect-ratio: 9/16; overflow: hidden; background: var(--bg); }
+  .album-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; object-position: center top; }
+  .album-actions { display: none; gap: 6px; margin-top: auto; padding-top: 2px; }
+  body.edit-mode .album-actions { display: flex; }
+  body.edit-mode .album-card { outline: 2px solid var(--primary); outline-offset: -2px; }
+  #editModeBtn.active, #sortExpiryBtn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
 
   .albums-list { background: var(--card); border-radius: var(--r); box-shadow: var(--shadow); overflow: hidden; }
   .list-header { display: grid; grid-template-columns: 2fr 3fr 1.5fr 1fr auto; gap: 12px; padding: 12px 20px; background: var(--bg); border-bottom: 1px solid var(--border); font-size: 12px; font-weight: 600; color: var(--sub); text-transform: uppercase; letter-spacing: .05em; }
@@ -75,6 +85,19 @@
   .list-tags { display: flex; gap: 4px; flex-wrap: wrap; }
   .list-date { font-size: 13px; color: var(--sub); }
   .list-actions { display: flex; gap: 6px; justify-content: flex-end; }
+
+  /* Media items popover */
+  .media-popover { position: fixed; z-index: 300; background: var(--card); border-radius: 14px; box-shadow: 0 8px 32px rgba(0,0,0,.18); padding: 16px; min-width: 260px; max-width: 340px; max-height: 60vh; overflow-y: auto; animation: toastIn .2s ease-out; }
+  .media-popover h4 { font-size: 13px; font-weight: 600; color: var(--sub); margin-bottom: 10px; text-transform: uppercase; letter-spacing: .05em; }
+  .media-item-row { padding: 8px 0; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+  .media-item-row:last-child { border-bottom: none; }
+  .media-item-info { flex: 1; min-width: 0; }
+  .media-item-name { font-size: 14px; font-weight: 600; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .media-item-meta { font-size: 12px; color: var(--sub); }
+  .media-item-copy { flex-shrink: 0; background: none; border: 1px solid var(--border); border-radius: 6px; padding: 3px 8px; font-size: 12px; cursor: pointer; color: var(--sub); transition: background .15s; }
+  .media-item-copy:hover { background: var(--border); color: var(--text); }
+  .chip.clickable { cursor: pointer; }
+  .chip.clickable:hover { background: var(--border); }
 
   /* Modal */
   .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(4px); }
@@ -141,19 +164,19 @@
       iCloud 相簿管理
     </div>
     <div class="header-actions">
-      <button class="btn btn-secondary btn-sm" onclick="exportData()">⬇ 匯出</button>
-      <label class="btn btn-secondary btn-sm" style="cursor:pointer">⬆ 匯入<input type="file" accept=".json" style="display:none" onchange="importData(event)"></label>
-      <button class="btn btn-primary btn-sm" onclick="openAddModal()">+ 新增相簿</button>
+      <button class="btn btn-secondary btn-sm" id="batchScrapeBtn" onclick="batchScrape()" title="自動抓取所有未有資料的相簿">🔄 批量抓取</button>
+      <button class="btn btn-secondary btn-sm" id="editModeBtn" onclick="toggleEditMode()">✏️ 編輯</button>
+      <button class="btn btn-primary btn-sm" onclick="openAddModal()" style="font-size:18px;padding:6px 14px;line-height:1">+</button>
     </div>
   </div>
 </header>
 
 <main class="main">
-  <div class="stats" id="statsBar">
-    <div class="stat-card"><div class="stat-value" id="statTotal">…</div><div class="stat-label">總相簿數</div></div>
-    <div class="stat-card"><div class="stat-value" id="statTags">…</div><div class="stat-label">標籤種類</div></div>
-    <div class="stat-card"><div class="stat-value" id="statExpiring">…</div><div class="stat-label">即將到期（30天內）</div></div>
-    <div class="stat-card"><div class="stat-value" id="statRecent">—</div><div class="stat-label">最近新增</div></div>
+  <div id="statsBar" style="display:none">
+    <div class="stat-card"><div class="stat-value" id="statTotal"></div></div>
+    <div class="stat-card"><div class="stat-value" id="statTags"></div></div>
+    <div class="stat-card"><div class="stat-value" id="statExpiring"></div></div>
+    <div class="stat-card"><div class="stat-value" id="statRecent"></div></div>
   </div>
 
   <div class="toolbar">
@@ -161,22 +184,12 @@
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       <input type="text" id="searchInput" placeholder="搜尋名稱、分享者、描述…" oninput="renderAlbums()">
     </div>
-    <select id="sortSelect" onchange="renderAlbums()">
-      <option value="date_desc">最新新增</option>
-      <option value="date_asc">最舊新增</option>
-      <option value="name_asc">名稱 A→Z</option>
-      <option value="expiry_asc">到期日最近</option>
-    </select>
-    <div class="view-toggle">
-      <button class="view-btn active" id="viewGrid" onclick="setView('grid')" title="格狀">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-      </button>
-      <button class="view-btn" id="viewList" onclick="setView('list')" title="列表">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3" cy="6" r="1.5" fill="currentColor" stroke="none"/><circle cx="3" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="3" cy="18" r="1.5" fill="currentColor" stroke="none"/></svg>
-      </button>
-    </div>
-    <button class="btn btn-primary" onclick="openAddModal()">+ 新增</button>
+    <button class="btn btn-secondary btn-sm" id="sortExpiryBtn" onclick="toggleSortExpiry()" title="按到期遠近排序">📅 到期</button>
   </div>
+  <select id="sortSelect" style="display:none" onchange="renderAlbums()">
+    <option value="date_desc">最新新增</option>
+    <option value="expiry_asc">到期日最近</option>
+  </select>
 
   <div class="tag-filters" id="tagFilters"></div>
   <div id="albumsContainer"></div>
@@ -242,6 +255,20 @@
         </div>
         <div class="tags-preview" id="tagsPreview"></div>
       </div>
+
+      <div class="form-group">
+        <label class="form-label">📝 備註</label>
+        <textarea class="form-input" id="fieldNote" rows="3" placeholder="自己看的備註，點卡片上的 📝 可以顯示" style="resize:vertical;font-size:14px;line-height:1.5"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">🔗 參考影片連結</label>
+        <div class="tags-input-wrap">
+          <input class="form-input" type="url" id="refLinkInput" placeholder="貼上 YouTube / 任意連結" onkeydown="if(event.key==='Enter'){event.preventDefault();addRefLink()}">
+          <button class="btn btn-secondary" onclick="addRefLink()">新增</button>
+        </div>
+        <div id="refLinksPreview"></div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal()">取消</button>
@@ -259,8 +286,8 @@ let currentView = 'grid';
 let activeTag = null;
 let currentTags = [];
 
+const BASE = "https://apple.yaja168.com";
 // ── API ───────────────────────────────────────────────────────
-const BASE = 'https://apple.yaja168.com';
 const api = {
   async get(path) { const r = await fetch(BASE + path); return r.json(); },
   async post(path, body) { const r = await fetch(BASE + path, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) }); return r.json(); },
@@ -280,7 +307,8 @@ async function scrapeLink() {
   const btn = document.getElementById('scrapeBtn');
   btn.disabled = true; btn.textContent = '抓取中…';
   try {
-    const data = await api.post('/api/scrape', { url });
+    const editId = document.getElementById('editId').value;
+    const data = await api.post('/api/scrape', { url, albumId: editId || undefined });
     if (data.ok) {
       if (data.sharedBy) document.getElementById('fieldSharedBy').value = data.sharedBy;
       if (data.expiryDate) document.getElementById('fieldExpiry').value = data.expiryDate;
@@ -293,9 +321,12 @@ async function scrapeLink() {
       if (data.itemCount) items.push(`<div class="item">數量：<span>${data.itemCount} 個項目</span></div>`);
       if (data.mediaType) items.push(`<div class="item">類型：<span>${esc(data.mediaType)}</span></div>`);
       if (data.expiryDate) items.push(`<div class="item">到期：<span>${esc(data.expiryDate)}</span></div>`);
+      if (data.hasThumb) items.push(`<div class="item">縮圖：<span>✓ 已抓取</span></div>`);
       document.getElementById('scrapeItems').innerHTML = items.join('');
       document.getElementById('scrapeResult').classList.add('show');
       toast('資訊抓取成功！', 'success');
+      // 編輯模式下自動儲存
+      if (editId) await saveAlbum();
     } else {
       toast('抓取失敗：' + (data.error || '未知錯誤'), 'error');
     }
@@ -417,23 +448,36 @@ function expiryBadgeHTML(a) {
 
 function cardHTML(a) {
   const chips = [];
-  if (a.sharedBy)  chips.push(`<span class="chip"><span class="chip-icon">👤</span>${esc(a.sharedBy)}</span>`);
-  if (a.mediaType) chips.push(`<span class="chip"><span class="chip-icon">🎬</span>${esc(a.mediaType)}</span>`);
+  if (a.note) chips.push(`<span class="chip clickable" onclick="showNote(event,'${a.id}')"><span class="chip-icon">📝</span>備註</span>`);
+  if (a.refLinks?.length) chips.push(`<span class="chip clickable" onclick="showRefLinks(event,'${a.id}')"><span class="chip-icon">🔗</span>${a.refLinks.length} 條參考</span>`);
+  if (a.mediaType) {
+    const hasItems = a.mediaItems && a.mediaItems.length;
+    chips.push(`<span class="chip${hasItems ? ' clickable' : ''}" ${hasItems ? `onclick="showMediaItems(event,'${a.id}')"` : ''}><span class="chip-icon">🎬</span>${esc(a.mediaType)}</span>`);
+  }
   if (!chips.length && !a.expiryDate) chips.push(`<span class="chip" style="color:var(--sub)">新增 ${formatDate(a.createdAt)}</span>`);
 
+  const tagsHTML = (a.tags||[]).length
+    ? `<div class="thumb-tags">${a.tags.map(t=>`<span class="thumb-tag" onclick="event.stopPropagation();setTagFilter('${esc(t)}')">${esc(t)}</span>`).join('')}</div>`
+    : '';
+
+  const thumbHTML = `<div class="album-thumb-wrap" onclick="openLink('${esc(a.link)}')" style="cursor:pointer">
+    <div class="album-thumb" id="thumb-${a.id}">
+      <img src="${BASE}/api/thumb/${a.id}" alt="" onerror="this.parentElement.style.display='none'">
+    </div>
+    ${expiryBadgeHTML(a)}
+    ${tagsHTML}
+  </div>`;
+
   return `<div class="album-card">
+    ${thumbHTML}
     <div class="album-body">
       <div class="album-header">
         <div class="album-name">${esc(a.name)}</div>
-        ${expiryBadgeHTML(a)}
       </div>
       ${chips.length ? `<div class="album-chips">${chips.join('')}</div>` : ''}
-      ${(a.tags||[]).length ? `<div class="album-tags">${a.tags.map(t=>`<span class="tag" onclick="setTagFilter('${esc(t)}')">${esc(t)}</span>`).join('')}</div>` : ''}
       <div class="album-actions">
-        <button class="btn btn-primary btn-sm" onclick="openLink('${esc(a.link)}')">開啟</button>
-        <button class="btn btn-secondary btn-sm" onclick="copyLink('${esc(a.link)}')">複製</button>
-        <button class="btn btn-secondary btn-sm" onclick="openEditModal('${a.id}')">✏️</button>
-        <button class="btn btn-sm" style="background:#fff0f0;color:var(--danger)" onclick="deleteAlbum('${a.id}')">🗑</button>
+        <button class="btn btn-secondary btn-sm" style="flex:1" onclick="openEditModal('${a.id}')">✏️ 編輯</button>
+        <button class="btn btn-sm" style="background:#fff0f0;color:var(--danger);flex:1" onclick="deleteAlbum('${a.id}')">🗑 刪除</button>
       </div>
     </div>
   </div>`;
@@ -468,7 +512,9 @@ function setView(v) {
 // ── Modal ─────────────────────────────────────────────────────
 function openAddModal() {
   currentTags = [];
-  ['editId','fieldLink','fieldName','fieldSharedBy','fieldExpiry','fieldItemCount','fieldMediaType','tagInput'].forEach(id => {
+  currentRefLinks = [];
+  renderRefLinksPreview();
+  ['editId','fieldLink','fieldName','fieldSharedBy','fieldExpiry','fieldItemCount','fieldMediaType','fieldNote','refLinkInput','tagInput'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
@@ -490,6 +536,9 @@ function openEditModal(id) {
   document.getElementById('fieldExpiry').value = a.expiryDate || '';
   document.getElementById('fieldItemCount').value = a.itemCount || '';
   document.getElementById('fieldMediaType').value = a.mediaType || '';
+  document.getElementById('fieldNote').value = a.note || '';
+  currentRefLinks = [...(a.refLinks || [])];
+  renderRefLinksPreview();
   document.getElementById('tagInput').value = '';
   document.getElementById('scrapeResult').classList.remove('show');
   document.getElementById('modalTitle').textContent = '編輯相簿連結';
@@ -527,6 +576,8 @@ async function saveAlbum() {
     expiryDate: document.getElementById('fieldExpiry').value.trim(),
     itemCount: document.getElementById('fieldItemCount').value.trim(),
     mediaType: document.getElementById('fieldMediaType').value.trim(),
+    note: document.getElementById('fieldNote').value.trim(),
+    refLinks: [...currentRefLinks],
     tags: [...currentTags],
   };
 
@@ -555,7 +606,148 @@ async function deleteAlbum(id) {
   renderAlbums(); toast('已刪除');
 }
 
+// ── Media items popover ───────────────────────────────────────
+let _popover = null;
+function showMediaItems(e, albumId) {
+  e.stopPropagation();
+  closePopover();
+  const a = albums.find(x => x.id === albumId);
+  if (!a || !a.mediaItems) return;
+  const pop = document.createElement('div');
+  pop.className = 'media-popover';
+  const allNames = a.mediaItems.map(m => m.filename).join('\n');
+  pop.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <h4 style="margin:0">媒體列表</h4>
+      <button class="media-item-copy" style="font-size:12px;padding:4px 10px" id="copyAllBtn"
+        onclick="navigator.clipboard.writeText(${JSON.stringify(allNames)}).then(()=>{this.textContent='✓ 已複製';setTimeout(()=>{this.textContent='全部複製';},1500)})">全部複製</button>
+    </div>` + a.mediaItems.map(m => `
+    <div class="media-item-row">
+      <div class="media-item-info">
+        <div class="media-item-name">${esc(m.filename)}</div>
+        <div class="media-item-meta">${[m.date, m.resolution, m.duration].filter(Boolean).join(' · ')}</div>
+      </div>
+    </div>`).join('');
+  const rect = e.target.getBoundingClientRect();
+  document.body.appendChild(pop);
+  const popH = pop.offsetHeight;
+  const spaceBelow = window.innerHeight - rect.bottom - 8;
+  const top = spaceBelow >= popH ? rect.bottom + 8 : rect.top - popH - 8;
+  pop.style.top = Math.max(8, top) + 'px';
+  pop.style.left = Math.min(rect.left, window.innerWidth - 360) + 'px';
+  _popover = pop;
+  setTimeout(() => document.addEventListener('click', closePopover, { once: true }), 10);
+}
+function closePopover() {
+  if (_popover) { _popover.remove(); _popover = null; }
+}
+function showNote(e, albumId) {
+  e.stopPropagation();
+  closePopover();
+  const a = albums.find(x => x.id === albumId);
+  if (!a?.note) return;
+  const pop = document.createElement('div');
+  pop.className = 'media-popover';
+  pop.innerHTML = `<h4>📝 備註</h4><div style="font-size:14px;line-height:1.6;white-space:pre-wrap">${esc(a.note)}</div>`;
+  const rect = e.target.getBoundingClientRect();
+  document.body.appendChild(pop);
+  const popH = pop.offsetHeight;
+  const spaceBelow = window.innerHeight - rect.bottom - 8;
+  const top = spaceBelow >= popH ? rect.bottom + 8 : rect.top - popH - 8;
+  pop.style.top = Math.max(8, top) + 'px';
+  pop.style.left = Math.min(rect.left, window.innerWidth - 360) + 'px';
+  _popover = pop;
+  setTimeout(() => document.addEventListener('click', closePopover, { once: true }), 10);
+}
+
 // ── Actions ───────────────────────────────────────────────────
+// ── Ref Links ─────────────────────────────────────────────────
+let currentRefLinks = [];
+function addRefLink() {
+  const inp = document.getElementById('refLinkInput');
+  const v = inp.value.trim();
+  if (!v) return;
+  currentRefLinks.push(v);
+  inp.value = '';
+  renderRefLinksPreview();
+}
+function removeRefLink(i) { currentRefLinks.splice(i, 1); renderRefLinksPreview(); }
+function renderRefLinksPreview() {
+  document.getElementById('refLinksPreview').innerHTML = currentRefLinks.map((u, i) => `
+    <div style="display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px">
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--primary)">${esc(u)}</span>
+      <button class="tag-remove" onclick="removeRefLink(${i})">✕</button>
+    </div>`).join('');
+}
+function showRefLinks(e, albumId) {
+  e.stopPropagation();
+  closePopover();
+  const a = albums.find(x => x.id === albumId);
+  if (!a?.refLinks?.length) return;
+  const pop = document.createElement('div');
+  pop.className = 'media-popover';
+  pop.innerHTML = `<h4 style="margin-bottom:10px">🔗 參考影片</h4>` + a.refLinks.map((u, i) => `
+    <div style="padding:8px 0;border-bottom:1px solid var(--border)">
+      <a href="${esc(u)}" target="_blank" rel="noopener"
+        style="font-size:13px;color:var(--primary);word-break:break-all;text-decoration:none;line-height:1.4"
+        onclick="event.stopPropagation()">🔗 ${esc(u)}</a>
+    </div>`).join('');
+  const rect = e.target.getBoundingClientRect();
+  document.body.appendChild(pop);
+  const popH = pop.offsetHeight;
+  const spaceBelow = window.innerHeight - rect.bottom - 8;
+  const top = spaceBelow >= popH ? rect.bottom + 8 : rect.top - popH - 8;
+  pop.style.top = Math.max(8, top) + 'px';
+  pop.style.left = Math.min(rect.left, window.innerWidth - 360) + 'px';
+  _popover = pop;
+  setTimeout(() => document.addEventListener('click', closePopover, { once: true }), 10);
+}
+// ── Batch Scrape ──────────────────────────────────────────────
+async function batchScrape() {
+  const missing = albums.filter(a => !a.sharedBy && !a.itemCount && !a.mediaType && !a.expiryDate);
+  if (!missing.length) { toast('所有相簿都已有資料', 'success'); return; }
+  const btn = document.getElementById('batchScrapeBtn');
+  btn.disabled = true;
+  let done = 0, failed = 0;
+  for (const a of missing) {
+    btn.textContent = `🔄 ${done + failed + 1}/${missing.length}`;
+    try {
+      const data = await api.post('/api/scrape', { url: a.link, albumId: a.id });
+      if (data.ok !== false) {
+        const patch = {};
+        if (data.sharedBy)  patch.sharedBy  = data.sharedBy;
+        if (data.expiryDate) patch.expiryDate = data.expiryDate;
+        if (data.itemCount)  patch.itemCount  = data.itemCount;
+        if (data.mediaType)  patch.mediaType  = data.mediaType;
+        if (Object.keys(patch).length) {
+          const updated = await api.put(`/api/albums/${a.id}`, { ...a, ...patch });
+          albums = albums.map(x => x.id === a.id ? updated : x);
+        }
+        done++;
+      } else { failed++; }
+    } catch { failed++; }
+    renderAlbums();
+  }
+  btn.disabled = false;
+  btn.textContent = '🔄 批量抓取';
+  toast(`完成：${done} 筆成功${failed ? `，${failed} 筆失敗` : ''}`, done ? 'success' : 'error');
+}
+
+function toggleSortExpiry() {
+  const sel = document.getElementById('sortSelect');
+  const btn = document.getElementById('sortExpiryBtn');
+  const on = sel.value !== 'expiry_asc';
+  sel.value = on ? 'expiry_asc' : 'date_desc';
+  btn.classList.toggle('active', on);
+  renderAlbums();
+}
+function toggleEditMode() {
+  document.body.classList.toggle('edit-mode');
+  const btn = document.getElementById('editModeBtn');
+  const on = document.body.classList.contains('edit-mode');
+  btn.classList.toggle('active', on);
+  btn.textContent = on ? '✕ 完成' : '✏️ 編輯';
+}
 function openLink(url) { window.open(url, '_blank'); }
 function copyLink(url) {
   navigator.clipboard.writeText(url).then(() => toast('已複製', 'success')).catch(() => {
