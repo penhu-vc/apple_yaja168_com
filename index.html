@@ -48,8 +48,10 @@
   .view-btn.active { background: var(--primary); color: #fff; }
 
   .albums-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 220px)); gap: 16px; }
-  .album-card { background: var(--card); border-radius: var(--r); box-shadow: var(--shadow); overflow: hidden; transition: transform .2s, box-shadow .2s; display: flex; flex-direction: column; }
+  .album-card { background: var(--card); border-radius: var(--r); box-shadow: var(--shadow); overflow: hidden; transition: transform .2s, box-shadow .2s; display: flex; flex-direction: column; cursor: pointer; position: relative; }
   .album-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.12); }
+  .album-card-link { position: absolute; inset: 0; z-index: 2; border-radius: inherit; }
+  .album-card-link:focus-visible { outline: 3px solid var(--primary); outline-offset: -3px; }
   .album-body { padding: 12px; flex: 1; display: flex; flex-direction: column; gap: 8px; }
   .album-header { display: flex; flex-direction: column; gap: 4px; }
   .album-name { font-size: 14px; font-weight: 600; line-height: 1.3; }
@@ -58,11 +60,9 @@
   .expiry-badge.soon  { background: #fff3e0; color: #e65100; }
   .expiry-badge.urgent{ background: #fde8e8; color: var(--danger); }
   .expiry-badge.none  { display: none; }
-  /* Badge & tags overlay on thumb */
+  /* Badge overlay on thumb */
   .album-thumb-wrap { position: relative; }
   .album-thumb-wrap .expiry-badge { position: absolute; top: 8px; right: 8px; backdrop-filter: blur(6px); background: rgba(255,255,255,.85); color: #555; }
-  .thumb-tags { position: absolute; bottom: 8px; left: 8px; display: flex; flex-wrap: wrap; gap: 4px; }
-  .thumb-tag { padding: 2px 8px; border-radius: 20px; background: rgba(0,0,0,.45); backdrop-filter: blur(4px); color: #fff; font-size: 11px; font-weight: 500; cursor: pointer; }
   .album-chips { display: flex; gap: 8px; flex-wrap: wrap; }
   .chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 8px; background: var(--bg); border: 1px solid var(--border); font-size: 12px; color: var(--text); }
   .chip-icon { font-size: 13px; }
@@ -74,6 +74,7 @@
   .album-actions { display: none; gap: 6px; margin-top: auto; padding-top: 2px; }
   body.edit-mode .album-actions { display: flex; }
   body.edit-mode .album-card { outline: 2px solid var(--primary); outline-offset: -2px; }
+  body.edit-mode .album-card-link { display: none; }
   #editModeBtn.active, #sortExpiryBtn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
 
   .albums-list { background: var(--card); border-radius: var(--r); box-shadow: var(--shadow); overflow: hidden; }
@@ -96,6 +97,7 @@
   .media-item-meta { font-size: 12px; color: var(--sub); }
   .media-item-copy { flex-shrink: 0; background: none; border: 1px solid var(--border); border-radius: 6px; padding: 3px 8px; font-size: 12px; cursor: pointer; color: var(--sub); transition: background .15s; }
   .media-item-copy:hover { background: var(--border); color: var(--text); }
+  .album-actions, .chip.clickable, .album-tags .tag { position: relative; z-index: 3; }
   .chip.clickable { cursor: pointer; }
   .chip.clickable:hover { background: var(--border); }
 
@@ -118,9 +120,18 @@
   .form-row .form-group { flex: 1; }
   .tags-input-wrap { display: flex; gap: 8px; }
   .tags-input-wrap input { flex: 1; }
-  .tags-preview { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-  .tag-remove { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; background: var(--tag-bg); color: var(--tag-text); border-radius: 20px; font-size: 12px; cursor: pointer; border: none; font-family: inherit; }
+  .tags-preview { display: grid; gap: 10px; margin-top: 10px; }
+  .tag-section { display: grid; gap: 6px; }
+  .tag-section-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12px; color: var(--sub); }
+  .tag-section-title { font-weight: 600; }
+  .tag-list { display: flex; flex-wrap: wrap; gap: 6px; min-height: 30px; }
+  .tag-empty { font-size: 12px; color: var(--sub); padding: 6px 0; }
+  .tag-remove, .tag-choice, .tag-clear { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; background: var(--tag-bg); color: var(--tag-text); border-radius: 20px; font-size: 12px; cursor: pointer; border: none; font-family: inherit; }
   .tag-remove:hover { background: #fde8e8; color: var(--danger); }
+  .tag-choice { background: var(--card); border: 1px solid var(--border); color: var(--text); }
+  .tag-choice:hover { background: var(--tag-bg); border-color: var(--primary); color: var(--tag-text); }
+  .tag-clear { background: transparent; color: var(--sub); padding: 0; }
+  .tag-clear:hover { color: var(--danger); }
   .modal-footer { padding: 0 24px 24px; display: flex; justify-content: flex-end; gap: 10px; }
 
   /* Scrape result banner */
@@ -211,7 +222,7 @@
           <input class="form-input" type="url" id="fieldLink" placeholder="https://share.icloud.com/photos/...">
           <button class="btn btn-secondary btn-sm" id="scrapeBtn" onclick="scrapeLink()">🔍 自動抓取</button>
         </div>
-        <div class="form-hint">貼上連結後點「自動抓取」可讀取分享者、數量、到期日</div>
+        <div class="form-hint">貼上連結後點「自動抓取」，可自動補齊相簿資訊</div>
       </div>
 
       <!-- Auto-fetched info banner -->
@@ -225,27 +236,10 @@
         <input class="form-input" type="text" id="fieldName" placeholder="例：2024 日本旅遊">
       </div>
 
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">分享者</label>
-          <input class="form-input" type="text" id="fieldSharedBy" placeholder="自動填入或手動輸入">
-        </div>
-        <div class="form-group">
-          <label class="form-label">到期日</label>
-          <input class="form-input" type="text" id="fieldExpiry" placeholder="例：5月31日">
-        </div>
-      </div>
-
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">項目數量</label>
-          <input class="form-input" type="text" id="fieldItemCount" placeholder="例：12">
-        </div>
-        <div class="form-group">
-          <label class="form-label">媒體類型</label>
-          <input class="form-input" type="text" id="fieldMediaType" placeholder="例：3 部影片">
-        </div>
-      </div>
+      <input type="hidden" id="fieldSharedBy">
+      <input type="hidden" id="fieldExpiry">
+      <input type="hidden" id="fieldItemCount">
+      <input type="hidden" id="fieldMediaType">
 
       <div class="form-group">
         <label class="form-label">標籤</label>
@@ -457,23 +451,24 @@ function cardHTML(a) {
   if (!chips.length && !a.expiryDate) chips.push(`<span class="chip" style="color:var(--sub)">新增 ${formatDate(a.createdAt)}</span>`);
 
   const tagsHTML = (a.tags||[]).length
-    ? `<div class="thumb-tags">${a.tags.map(t=>`<span class="thumb-tag" onclick="event.stopPropagation();setTagFilter('${esc(t)}')">${esc(t)}</span>`).join('')}</div>`
+    ? `<div class="album-tags">${a.tags.map(t=>`<span class="tag" onclick="event.stopPropagation();setTagFilter('${esc(t)}')">${esc(t)}</span>`).join('')}</div>`
     : '';
 
-  const thumbHTML = `<div class="album-thumb-wrap" onclick="openLink('${esc(a.link)}')" style="cursor:pointer">
+  const thumbHTML = `<div class="album-thumb-wrap">
     <div class="album-thumb" id="thumb-${a.id}">
       <img src="${BASE}/api/thumb/${a.id}" alt="" onerror="this.parentElement.style.display='none'">
     </div>
     ${expiryBadgeHTML(a)}
-    ${tagsHTML}
   </div>`;
 
   return `<div class="album-card">
+    <a class="album-card-link" href="${esc(a.link)}" target="_blank" rel="noopener" aria-label="開啟 ${esc(a.name)}"></a>
     ${thumbHTML}
     <div class="album-body">
       <div class="album-header">
         <div class="album-name">${esc(a.name)}</div>
       </div>
+      ${tagsHTML}
       ${chips.length ? `<div class="album-chips">${chips.join('')}</div>` : ''}
       <div class="album-actions">
         <button class="btn btn-secondary btn-sm" style="flex:1" onclick="openEditModal('${a.id}')">✏️ 編輯</button>
@@ -549,17 +544,44 @@ function openEditModal(id) {
 function closeModal() { document.getElementById('albumModal').style.display = 'none'; }
 function closeModalOnBackdrop(e) { if (e.target.id === 'albumModal') closeModal(); }
 
+function normalizeTag(v) { return String(v || '').trim().replace(/\s+/g,'_'); }
 function handleTagKey(e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); addTag(); } }
 function addTag() {
-  const v = document.getElementById('tagInput').value.trim().replace(/\s+/g,'_');
+  const v = normalizeTag(document.getElementById('tagInput').value);
   if (!v || currentTags.includes(v)) { document.getElementById('tagInput').value = ''; return; }
   currentTags.push(v); document.getElementById('tagInput').value = ''; renderTagsPreview();
 }
+function addExistingTag(t) {
+  const v = normalizeTag(t);
+  if (!v || currentTags.includes(v)) return;
+  currentTags.push(v);
+  renderTagsPreview();
+}
 function removeTag(t) { currentTags = currentTags.filter(x => x !== t); renderTagsPreview(); }
+function clearTags() { currentTags = []; renderTagsPreview(); }
 function renderTagsPreview() {
-  document.getElementById('tagsPreview').innerHTML = currentTags.map(t =>
-    `<button class="tag-remove" onclick="removeTag('${esc(t)}')">${esc(t)} ✕</button>`
-  ).join('');
+  const selected = currentTags.length
+    ? currentTags.map(t => `<button class="tag-remove" onclick="removeTag('${esc(t)}')">${esc(t)} ✕</button>`).join('')
+    : `<span class="tag-empty">尚未選擇標籤</span>`;
+  const availableTags = getAllTags().filter(t => !currentTags.includes(t));
+  const available = availableTags.length
+    ? availableTags.map(t => `<button class="tag-choice" onclick="addExistingTag('${esc(t)}')">+ ${esc(t)}</button>`).join('')
+    : `<span class="tag-empty">沒有其他既有標籤</span>`;
+  document.getElementById('tagsPreview').innerHTML = `
+    <div class="tag-section">
+      <div class="tag-section-head">
+        <span class="tag-section-title">已選標籤</span>
+        ${currentTags.length ? `<button class="tag-clear" onclick="clearTags()">清空</button>` : ''}
+      </div>
+      <div class="tag-list">${selected}</div>
+    </div>
+    <div class="tag-section">
+      <div class="tag-section-head">
+        <span class="tag-section-title">既有標籤</span>
+      </div>
+      <div class="tag-list">${available}</div>
+    </div>
+  `;
 }
 
 // ── CRUD ──────────────────────────────────────────────────────
