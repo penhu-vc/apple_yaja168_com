@@ -227,7 +227,7 @@
 
   .topbar {
     display: grid;
-    grid-template-columns: minmax(220px, 1fr) minmax(180px, 220px) 160px auto;
+    grid-template-columns: minmax(220px, 1fr) minmax(160px, 210px) minmax(160px, 210px) 150px auto;
     gap: 10px;
     align-items: center;
     margin-bottom: 18px;
@@ -325,29 +325,6 @@
   .filter-option.active .filter-check {
     background: var(--primary);
     border-color: var(--primary);
-  }
-
-  .quick-tags {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    margin-bottom: 18px;
-  }
-
-  .pill {
-    border: 1px solid var(--line);
-    background: var(--panel);
-    color: var(--muted);
-    border-radius: 999px;
-    padding: 7px 12px;
-    cursor: pointer;
-    font-size: 13px;
-  }
-
-  .pill.active {
-    background: var(--primary);
-    border-color: var(--primary);
-    color: #fff;
   }
 
   .board {
@@ -699,20 +676,6 @@
       min-height: 44px;
       font-size: 15px;
     }
-    .quick-tags {
-      flex-wrap: nowrap;
-      overflow-x: auto;
-      margin: 0 -12px 12px;
-      padding: 0 12px 2px;
-      scrollbar-width: none;
-    }
-    .quick-tags::-webkit-scrollbar {
-      display: none;
-    }
-    .pill {
-      flex: 0 0 auto;
-      min-height: 36px;
-    }
     .board {
       grid-template-columns: 1fr;
       gap: 12px;
@@ -806,13 +769,20 @@
 
   <main class="main">
     <div class="topbar">
-      <input class="input" id="searchInput" type="search" placeholder="搜尋標題、分類、標籤、備註">
+      <input class="input" id="searchInput" type="search" placeholder="搜尋標題、分類、備註">
       <div class="multi-filter" id="categoryFilter">
         <button class="filter-trigger" type="button" id="categoryFilterButton" aria-expanded="false">
           <span id="categoryFilterLabel">全部分類</span>
           <span>⌄</span>
         </button>
         <div class="filter-menu" id="categoryFilterOptions"></div>
+      </div>
+      <div class="multi-filter" id="tagFilter">
+        <button class="filter-trigger" type="button" id="tagFilterButton" aria-expanded="false">
+          <span id="tagFilterLabel">全部標籤</span>
+          <span>⌄</span>
+        </button>
+        <div class="filter-menu" id="tagFilterOptions"></div>
       </div>
       <select class="select" id="statusFilter">
         <option value="">全部狀態</option>
@@ -829,7 +799,6 @@
       </div>
     </div>
 
-    <div class="quick-tags" id="quickTags"></div>
     <section class="board" id="cards"></section>
   </main>
 </div>
@@ -933,9 +902,12 @@ const categoryFilter = document.getElementById('categoryFilter');
 const categoryFilterButton = document.getElementById('categoryFilterButton');
 const categoryFilterLabel = document.getElementById('categoryFilterLabel');
 const categoryFilterOptions = document.getElementById('categoryFilterOptions');
+const tagFilter = document.getElementById('tagFilter');
+const tagFilterButton = document.getElementById('tagFilterButton');
+const tagFilterLabel = document.getElementById('tagFilterLabel');
+const tagFilterOptions = document.getElementById('tagFilterOptions');
 const statusFilter = document.getElementById('statusFilter');
 const cards = document.getElementById('cards');
-const quickTags = document.getElementById('quickTags');
 const totalCount = document.getElementById('totalCount');
 const toastEl = document.getElementById('toast');
 const modalOpenLink = document.getElementById('modalOpenLink');
@@ -945,8 +917,8 @@ const newCategoryInput = document.getElementById('newCategoryInput');
 const hideDoneBtn = document.getElementById('hideDoneBtn');
 let items = [];
 let categories = [...DEFAULT_CATEGORIES];
-let activeTag = '';
 let selectedCategories = new Set();
+let selectedTags = new Set();
 let hideDone = false;
 let saveTimer = null;
 let isServerReady = false;
@@ -1203,11 +1175,24 @@ newCategoryInput.addEventListener('keydown', event => {
 categoryFilterButton.addEventListener('click', () => {
   const open = categoryFilter.classList.toggle('open');
   categoryFilterButton.setAttribute('aria-expanded', String(open));
+  tagFilter.classList.remove('open');
+  tagFilterButton.setAttribute('aria-expanded', 'false');
 });
 categoryFilterOptions.addEventListener('click', event => {
   event.stopPropagation();
   const option = event.target.closest('[data-filter-category]');
   if (option) toggleCategoryFilter(option.dataset.filterCategory);
+});
+tagFilterButton.addEventListener('click', () => {
+  const open = tagFilter.classList.toggle('open');
+  tagFilterButton.setAttribute('aria-expanded', String(open));
+  categoryFilter.classList.remove('open');
+  categoryFilterButton.setAttribute('aria-expanded', 'false');
+});
+tagFilterOptions.addEventListener('click', event => {
+  event.stopPropagation();
+  const option = event.target.closest('[data-filter-tag]');
+  if (option) toggleTagFilter(option.dataset.filterTag);
 });
 categoryList.addEventListener('click', event => {
   const button = event.target.closest('[data-delete-category]');
@@ -1218,6 +1203,10 @@ document.addEventListener('click', event => {
   if (!categoryFilter.contains(event.target)) {
     categoryFilter.classList.remove('open');
     categoryFilterButton.setAttribute('aria-expanded', 'false');
+  }
+  if (!tagFilter.contains(event.target)) {
+    tagFilter.classList.remove('open');
+    tagFilterButton.setAttribute('aria-expanded', 'false');
   }
 });
 
@@ -1387,11 +1376,6 @@ function copyUrl(id) {
   );
 }
 
-function setTag(tag) {
-  activeTag = activeTag === tag ? '' : tag;
-  render();
-}
-
 function toggleCategoryFilter(category) {
   if (category === '__all__') {
     selectedCategories.clear();
@@ -1399,6 +1383,17 @@ function toggleCategoryFilter(category) {
     selectedCategories.delete(category);
   } else {
     selectedCategories.add(category);
+  }
+  render();
+}
+
+function toggleTagFilter(tag) {
+  if (tag === '__all__') {
+    selectedTags.clear();
+  } else if (selectedTags.has(tag)) {
+    selectedTags.delete(tag);
+  } else {
+    selectedTags.add(tag);
   }
   render();
 }
@@ -1415,9 +1410,9 @@ function getFilteredItems() {
     ].join(' ').toLowerCase();
     return (!q || blob.includes(q))
       && (!selectedCategories.size || selectedCategories.has(item.category || '未分類'))
+      && (!selectedTags.size || (item.tags || []).some(tag => selectedTags.has(tag)))
       && (!hideDone || item.status !== 'done')
-      && (!statusFilter.value || item.status === statusFilter.value)
-      && (!activeTag || (item.tags || []).includes(activeTag));
+      && (!statusFilter.value || item.status === statusFilter.value);
   });
 }
 
@@ -1449,7 +1444,9 @@ function renderCategoryManager() {
 function renderFilters() {
   categories = getAllCategories();
   const filterCategories = [...categories].sort();
+  const filterTags = [...new Set(items.flatMap(item => item.tags || []))].sort();
   selectedCategories = new Set([...selectedCategories].filter(category => filterCategories.includes(category)));
+  selectedTags = new Set([...selectedTags].filter(tag => filterTags.includes(tag)));
   categoryFilterLabel.textContent = selectedCategories.size
     ? `已選 ${selectedCategories.size} 個分類`
     : '全部分類';
@@ -1463,13 +1460,29 @@ function renderFilters() {
       </button>
     `).join('')}
   `;
+  tagFilterLabel.textContent = selectedTags.size
+    ? `已選 ${selectedTags.size} 個標籤`
+    : '全部標籤';
+  tagFilterOptions.innerHTML = filterTags.length
+    ? `
+      <button class="filter-option ${selectedTags.size ? '' : 'active'}" type="button" data-filter-tag="__all__">
+        <span>全部標籤</span><span class="filter-check">${selectedTags.size ? '' : '✓'}</span>
+      </button>
+      ${filterTags.map(tag => {
+        const count = items.filter(item => (item.tags || []).includes(tag)).length;
+        return `
+          <button class="filter-option ${selectedTags.has(tag) ? 'active' : ''}" type="button" data-filter-tag="${esc(tag)}">
+            <span>${esc(tag)} ${count}</span><span class="filter-check">${selectedTags.has(tag) ? '✓' : ''}</span>
+          </button>
+        `;
+      }).join('')}
+    `
+    : `
+      <button class="filter-option" type="button" disabled>
+        <span>目前沒有標籤</span><span class="filter-check"></span>
+      </button>
+    `;
   renderCategorySelect();
-
-  const tags = [...new Set(items.flatMap(item => item.tags || []))].sort();
-  quickTags.innerHTML = tags.map(tag => {
-    const count = items.filter(item => (item.tags || []).includes(tag)).length;
-    return `<button class="pill ${activeTag === tag ? 'active' : ''}" type="button" onclick="setTag('${esc(tag)}')">${esc(tag)} ${count}</button>`;
-  }).join('');
 }
 
 function render() {
@@ -1511,7 +1524,7 @@ function render() {
         </button>
         <div class="card-body">
           ${note}
-          <div class="tags">${(item.tags || []).map(tag => `<button class="tag" type="button" onclick="setTag('${esc(tag)}')">${esc(tag)}</button>`).join('')}</div>
+          <div class="tags">${(item.tags || []).map(tag => `<button class="tag" type="button" onclick="toggleTagFilter('${esc(tag)}')">${esc(tag)}</button>`).join('')}</div>
           <div class="card-actions">
             <a class="btn btn-primary" href="${esc(item.url)}" target="_blank" rel="noopener">開啟</a>
             <button class="btn btn-secondary" type="button" onclick="openDetail('${item.id}')">整理</button>
