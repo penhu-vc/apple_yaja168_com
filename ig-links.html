@@ -883,6 +883,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
+const API_STATE_URL = '/api/state';
 const STORAGE_KEY = 'ig-link-collector-v1';
 const CATEGORY_STORAGE_KEY = 'ig-link-categories-v1';
 const DEFAULT_CATEGORIES = ['未分類', '拍攝靈感', '腳本', '構圖', '運鏡', '剪輯', '音樂', '商品展示', '競品觀察', '其他'];
@@ -913,13 +914,15 @@ const modalDeleteBtn = document.getElementById('modalDeleteBtn');
 const categoryList = document.getElementById('categoryList');
 const newCategoryInput = document.getElementById('newCategoryInput');
 const hideDoneBtn = document.getElementById('hideDoneBtn');
-let items = loadItems();
-let categories = loadCategories();
+let items = [];
+let categories = [...DEFAULT_CATEGORIES];
 let activeTag = '';
 let selectedCategories = new Set();
 let hideDone = false;
+let saveTimer = null;
+let isServerReady = false;
 
-function loadItems() {
+function loadLocalItems() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
     return Array.isArray(saved) ? saved : [];
@@ -929,10 +932,10 @@ function loadItems() {
 }
 
 function saveItems() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+  return persistState();
 }
 
-function loadCategories() {
+function loadLocalCategories() {
   try {
     const saved = JSON.parse(localStorage.getItem(CATEGORY_STORAGE_KEY) || '[]');
     const source = Array.isArray(saved) && saved.length ? saved : DEFAULT_CATEGORIES;
@@ -943,7 +946,56 @@ function loadCategories() {
 }
 
 function saveCategories() {
-  localStorage.setItem(CATEGORY_STORAGE_KEY, JSON.stringify(categories));
+  return persistState();
+}
+
+function getLocalState() {
+  return {
+    items: loadLocalItems(),
+    categories: loadLocalCategories()
+  };
+}
+
+function normalizeState(state) {
+  const nextItems = Array.isArray(state && state.items) ? state.items : [];
+  const nextCategories = normalizeCategoryList([
+    ...DEFAULT_CATEGORIES,
+    ...(Array.isArray(state && state.categories) ? state.categories : []),
+    ...nextItems.map(item => item.category || '未分類')
+  ]);
+  return { items: nextItems, categories: nextCategories };
+}
+
+async function loadServerState() {
+  const response = await fetch(API_STATE_URL, { cache: 'no-store' });
+  if (!response.ok) throw new Error('load failed');
+  return normalizeState(await response.json());
+}
+
+async function writeServerState(state) {
+  const response = await fetch(API_STATE_URL, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(normalizeState(state))
+  });
+  if (!response.ok) throw new Error('save failed');
+  return normalizeState(await response.json());
+}
+
+function persistState() {
+  if (!isServerReady) return Promise.resolve();
+  clearTimeout(saveTimer);
+  return new Promise(resolve => {
+    saveTimer = setTimeout(async () => {
+      try {
+        await writeServerState({ items, categories });
+        resolve();
+      } catch {
+        showToast('伺服器保存失敗，請稍後再試');
+        resolve();
+      }
+    }, 120);
+  });
 }
 
 function normalizeCategoryList(list) {
@@ -1019,7 +1071,7 @@ function isOrganized(item) {
   return item.category !== '未分類' || (item.tags || []).length > 0 || Boolean(item.note);
 }
 
-form.addEventListener('submit', event => {
+form.addEventListener('submit', async event => {
   event.preventDefault();
   const url = normalizeUrl(urlInput.value);
   if (!url) {
@@ -1050,14 +1102,14 @@ form.addEventListener('submit', event => {
     updatedAt: Date.now()
   };
   items.unshift(item);
-  saveItems();
+  await saveItems();
   form.reset();
   render();
   showToast('已先保存');
   urlInput.focus();
 });
 
-detailForm.addEventListener('submit', event => {
+detailForm.addEventListener('submit', async event => {
   event.preventDefault();
   const id = detailId.value;
   const existing = items.find(item => item.id === id);
@@ -1079,7 +1131,7 @@ detailForm.addEventListener('submit', event => {
     updatedAt: Date.now()
   };
   items = items.map(item => item.id === id ? updated : item);
-  saveItems();
+  await saveItems();
   closeDetail();
   render();
   showToast('已儲存整理');
@@ -1169,8 +1221,8 @@ document.getElementById('importFile').addEventListener('change', async event => 
       }));
     items = cleaned.concat(items);
     categories = normalizeCategoryList([...categories, ...cleaned.map(item => item.category)]);
-    saveCategories();
-    saveItems();
+    await saveCategories();
+    await saveItems();
     render();
     showToast(`已匯入 ${cleaned.length} 筆`);
   } catch {
@@ -1225,7 +1277,7 @@ function closeCategoryModalOnBackdrop(event) {
   if (event.target === categoryModal) closeCategoryManager();
 }
 
-function addCategory() {
+async function addCategory() {
   const category = newCategoryInput.value.trim();
   if (!category) return;
   if (categories.includes(category)) {
@@ -1234,14 +1286,14 @@ function addCategory() {
     return;
   }
   categories = normalizeCategoryList([...categories, category]);
-  saveCategories();
+  await saveCategories();
   newCategoryInput.value = '';
   render();
   renderCategoryManager();
   showToast('已新增分類');
 }
 
-function deleteCategory(category) {
+async function deleteCategory(category) {
   if (category === '未分類') {
     showToast('未分類不能刪除');
     return;
@@ -1254,29 +1306,29 @@ function deleteCategory(category) {
   categories = categories.filter(item => item !== category);
   items = items.map(item => item.category === category ? { ...item, category: '未分類', updatedAt: Date.now() } : item);
   selectedCategories.delete(category);
-  saveCategories();
-  saveItems();
+  await saveCategories();
+  await saveItems();
   render();
   renderCategoryManager();
   showToast('已刪除分類');
 }
 
-function removeItem(id) {
+async function removeItem(id) {
   const item = items.find(entry => entry.id === id);
   if (!item || !confirm(`確定刪除「${item.title || item.url}」？`)) return;
   items = items.filter(entry => entry.id !== id);
-  saveItems();
+  await saveItems();
   closeDetail();
   render();
   showToast('已刪除');
 }
 
-function toggleStatus(id) {
+async function toggleStatus(id) {
   items = items.map(item => {
     if (item.id !== id) return item;
     return { ...item, status: item.status === 'done' ? 'todo' : 'done', updatedAt: Date.now() };
   });
-  saveItems();
+  await saveItems();
   render();
 }
 
@@ -1428,6 +1480,44 @@ function showToast(message) {
   showToast.timer = setTimeout(() => toastEl.classList.remove('show'), 1800);
 }
 
+async function init() {
+  cards.innerHTML = `
+    <div class="empty" style="grid-column:1/-1">
+      <div>
+        <h2>正在讀取連結</h2>
+        <p>從伺服器同步保存資料。</p>
+      </div>
+    </div>
+  `;
+
+  try {
+    const serverState = await loadServerState();
+    const localState = getLocalState();
+    const hasServerItems = serverState.items.length > 0;
+    const hasLocalItems = localState.items.length > 0;
+
+    if (!hasServerItems && hasLocalItems) {
+      items = localState.items;
+      categories = normalizeCategoryList([...serverState.categories, ...localState.categories, ...items.map(item => item.category)]);
+      isServerReady = true;
+      await writeServerState({ items, categories });
+      showToast('已改成伺服器保存');
+    } else {
+      items = serverState.items;
+      categories = serverState.categories;
+      isServerReady = true;
+    }
+  } catch {
+    const localState = getLocalState();
+    items = localState.items;
+    categories = localState.categories;
+    isServerReady = false;
+    showToast('連不上伺服器，暫時只顯示本機資料');
+  }
+
+  render();
+}
+
 document.addEventListener('keydown', event => {
   if (event.key === 'Escape') {
     closeDetail();
@@ -1435,7 +1525,7 @@ document.addEventListener('keydown', event => {
   }
 });
 
-render();
+init();
 </script>
 </body>
 </html>
