@@ -545,26 +545,48 @@
   }
 
   .tag-editor {
-    display: grid;
+    display: flex;
+    flex-wrap: wrap;
     gap: 8px;
-  }
-
-  .tag-editor-row {
-    display: grid;
-    grid-template-columns: 1fr 38px;
-    gap: 8px;
-    align-items: center;
   }
 
   .tag-choice {
-    justify-content: flex-start;
-    min-width: 0;
+    min-height: 34px;
+    padding: 6px 8px 6px 11px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: #fff;
+    color: var(--text);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 13px;
+    font-weight: 650;
   }
 
   .tag-choice.active {
     background: var(--primary);
     border-color: var(--primary);
     color: #fff;
+  }
+
+  .tag-remove {
+    width: 20px;
+    height: 20px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .22);
+    color: inherit;
+    display: inline-grid;
+    place-items: center;
+    font-size: 13px;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .tag-choice:not(.active) .tag-remove {
+    background: #fff5f3;
+    color: var(--danger);
   }
 
   .category-name {
@@ -1223,10 +1245,14 @@ newTagInput.addEventListener('keydown', event => {
   }
 });
 detailTagList.addEventListener('click', event => {
-  const toggle = event.target.closest('[data-toggle-tag]');
   const remove = event.target.closest('[data-delete-tag]');
+  if (remove) {
+    event.stopPropagation();
+    deleteTag(remove.dataset.deleteTag);
+    return;
+  }
+  const toggle = event.target.closest('[data-toggle-tag]');
   if (toggle) toggleDetailTag(toggle.dataset.toggleTag);
-  if (remove) deleteTag(remove.dataset.deleteTag);
 });
 categoryFilterButton.addEventListener('click', () => {
   const open = categoryFilter.classList.toggle('open');
@@ -1497,10 +1523,10 @@ function renderDetailTags() {
     return;
   }
   detailTagList.innerHTML = list.map(tag => `
-    <div class="tag-editor-row">
-      <button class="btn btn-secondary tag-choice ${detailTags.has(tag) ? 'active' : ''}" type="button" data-toggle-tag="${esc(tag)}">${esc(tag)}</button>
-      <button class="btn btn-danger btn-icon" type="button" data-delete-tag="${esc(tag)}">x</button>
-    </div>
+    <button class="tag-choice ${detailTags.has(tag) ? 'active' : ''}" type="button" data-toggle-tag="${esc(tag)}">
+      <span>${esc(tag)}</span>
+      <span class="tag-remove" data-delete-tag="${esc(tag)}">x</span>
+    </button>
   `).join('');
 }
 
