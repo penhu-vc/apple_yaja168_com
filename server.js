@@ -46,12 +46,16 @@ function normalizeState(state) {
   const items = (Array.isArray(state && state.items) ? state.items : [])
     .map(normalizeItem)
     .filter(Boolean);
+  const tags = normalizeTags([
+    ...(state && state.tags || []),
+    ...items.flatMap(item => item.tags)
+  ]);
   const categories = normalizeCategoryList([
     ...DEFAULT_CATEGORIES,
     ...(state && state.categories || []),
     ...items.map(item => item.category)
   ]);
-  return { items, categories };
+  return { items, categories, tags };
 }
 
 async function readState() {
@@ -60,7 +64,7 @@ async function readState() {
     return normalizeState(JSON.parse(raw));
   } catch (error) {
     if (error.code === 'ENOENT') {
-      return { items: [], categories: [...DEFAULT_CATEGORIES] };
+      return { items: [], categories: [...DEFAULT_CATEGORIES], tags: [] };
     }
     throw error;
   }

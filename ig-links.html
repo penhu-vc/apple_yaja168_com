@@ -544,6 +544,29 @@
     background: #fff;
   }
 
+  .tag-editor {
+    display: grid;
+    gap: 8px;
+  }
+
+  .tag-editor-row {
+    display: grid;
+    grid-template-columns: 1fr 38px;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .tag-choice {
+    justify-content: flex-start;
+    min-width: 0;
+  }
+
+  .tag-choice.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+  }
+
   .category-name {
     font-weight: 650;
     overflow-wrap: anywhere;
@@ -844,9 +867,13 @@
         </div>
       </div>
       <div class="field">
-        <label for="tagsInput">標籤</label>
-        <input class="input" id="tagsInput" type="text" placeholder="例：開頭, 轉場, 食物, 手部特寫">
-        <div class="help">用逗號或空白分隔。</div>
+        <label>標籤</label>
+        <div class="tag-editor" id="detailTagList"></div>
+        <div class="btn-row">
+          <input class="input" id="newTagInput" type="text" placeholder="新增標籤">
+          <button class="btn btn-primary" type="button" id="addTagBtn">新增</button>
+        </div>
+        <div class="help">點標籤套用到這個連結，x 可刪除標籤。</div>
       </div>
       <div class="field">
         <label for="noteInput">備註</label>
@@ -895,8 +922,9 @@ const detailUrl = document.getElementById('detailUrl');
 const titleInput = document.getElementById('titleInput');
 const categoryInput = document.getElementById('categoryInput');
 const statusInput = document.getElementById('statusInput');
-const tagsInput = document.getElementById('tagsInput');
 const noteInput = document.getElementById('noteInput');
+const detailTagList = document.getElementById('detailTagList');
+const newTagInput = document.getElementById('newTagInput');
 const searchInput = document.getElementById('searchInput');
 const categoryFilter = document.getElementById('categoryFilter');
 const categoryFilterButton = document.getElementById('categoryFilterButton');
@@ -917,8 +945,10 @@ const newCategoryInput = document.getElementById('newCategoryInput');
 const hideDoneBtn = document.getElementById('hideDoneBtn');
 let items = [];
 let categories = [...DEFAULT_CATEGORIES];
+let tags = [];
 let selectedCategories = new Set();
 let selectedTags = new Set();
+let detailTags = new Set();
 let hideDone = false;
 let saveTimer = null;
 let isServerReady = false;
@@ -953,18 +983,23 @@ function saveCategories() {
 function getLocalState() {
   return {
     items: loadLocalItems(),
-    categories: loadLocalCategories()
+    categories: loadLocalCategories(),
+    tags: []
   };
 }
 
 function normalizeState(state) {
   const nextItems = Array.isArray(state && state.items) ? state.items : [];
+  const nextTags = normalizeTagList([
+    ...(Array.isArray(state && state.tags) ? state.tags : []),
+    ...nextItems.flatMap(item => item.tags || [])
+  ]);
   const nextCategories = normalizeCategoryList([
     ...DEFAULT_CATEGORIES,
     ...(Array.isArray(state && state.categories) ? state.categories : []),
     ...nextItems.map(item => item.category || '未分類')
   ]);
-  return { items: nextItems, categories: nextCategories };
+  return { items: nextItems, categories: nextCategories, tags: nextTags };
 }
 
 async function loadServerState() {
@@ -999,7 +1034,7 @@ function persistState() {
   return new Promise(resolve => {
     saveTimer = setTimeout(async () => {
       try {
-        await writeServerState({ items, categories });
+        await writeServerState({ items, categories, tags });
         resolve();
       } catch {
         showToast('伺服器保存失敗，請稍後再試');
@@ -1014,12 +1049,19 @@ function normalizeCategoryList(list) {
   return [...new Set(['未分類', ...normalized])];
 }
 
+function normalizeTagList(list) {
+  return [...new Set((Array.isArray(list) ? list : [])
+    .map(tag => String(tag || '').trim())
+    .filter(Boolean))];
+}
+
 function uid() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 function normalizeTags(value) {
-  return String(value || '')
+  const source = Array.isArray(value) ? value.join(',') : String(value || '');
+  return source
     .split(/[,，\s]+/)
     .map(tag => tag.trim())
     .filter(Boolean)
@@ -1142,12 +1184,13 @@ detailForm.addEventListener('submit', async event => {
     title: titleInput.value.trim() || preview.title || inferTitle(normalizedDetailUrl),
     category: categoryInput.value,
     status: statusInput.value,
-    tags: normalizeTags(tagsInput.value),
+    tags: [...detailTags],
     note: noteInput.value.trim(),
     thumbnailUrl: urlChanged ? (preview.thumbnailUrl || '') : (existing.thumbnailUrl || ''),
     updatedAt: Date.now()
   };
   items = items.map(item => item.id === id ? updated : item);
+  tags = normalizeTagList([...tags, ...detailTags]);
   await saveItems();
   closeDetail();
   render();
@@ -1166,11 +1209,24 @@ hideDoneBtn.addEventListener('click', () => {
 });
 document.getElementById('manageCategoriesBtn').addEventListener('click', openCategoryManager);
 document.getElementById('addCategoryBtn').addEventListener('click', addCategory);
+document.getElementById('addTagBtn').addEventListener('click', addDetailTag);
 newCategoryInput.addEventListener('keydown', event => {
   if (event.key === 'Enter') {
     event.preventDefault();
     addCategory();
   }
+});
+newTagInput.addEventListener('keydown', event => {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    addDetailTag();
+  }
+});
+detailTagList.addEventListener('click', event => {
+  const toggle = event.target.closest('[data-toggle-tag]');
+  const remove = event.target.closest('[data-delete-tag]');
+  if (toggle) toggleDetailTag(toggle.dataset.toggleTag);
+  if (remove) deleteTag(remove.dataset.deleteTag);
 });
 categoryFilterButton.addEventListener('click', () => {
   const open = categoryFilter.classList.toggle('open');
@@ -1256,6 +1312,7 @@ document.getElementById('importFile').addEventListener('change', async event => 
       }));
     items = cleaned.concat(items);
     categories = normalizeCategoryList([...categories, ...cleaned.map(item => item.category)]);
+    tags = normalizeTagList([...tags, ...cleaned.flatMap(item => item.tags || [])]);
     await saveCategories();
     await saveItems();
     render();
@@ -1278,12 +1335,15 @@ function openDetail(id) {
     saveCategories();
   }
   renderCategorySelect(item.category || '未分類');
+  tags = getAllTags();
+  detailTags = new Set(item.tags || []);
   detailId.value = item.id;
   detailUrl.value = item.url;
   titleInput.value = item.title || inferTitle(item.url);
   categoryInput.value = item.category || '未分類';
   statusInput.value = item.status || 'todo';
-  tagsInput.value = (item.tags || []).join(', ');
+  renderDetailTags();
+  newTagInput.value = '';
   noteInput.value = item.note || '';
   modalOpenLink.href = item.url;
   detailModal.classList.add('open');
@@ -1420,10 +1480,67 @@ function getAllCategories() {
   return normalizeCategoryList([...categories, ...items.map(item => item.category || '未分類')]);
 }
 
+function getAllTags() {
+  return normalizeTagList([...tags, ...items.flatMap(item => item.tags || [])]);
+}
+
 function renderCategorySelect(selected = categoryInput.value || '未分類') {
   const list = getAllCategories();
   categoryInput.innerHTML = list.map(category => `<option>${esc(category)}</option>`).join('');
   categoryInput.value = list.includes(selected) ? selected : '未分類';
+}
+
+function renderDetailTags() {
+  const list = getAllTags();
+  if (!list.length) {
+    detailTagList.innerHTML = '<div class="help">目前沒有標籤，先新增一個。</div>';
+    return;
+  }
+  detailTagList.innerHTML = list.map(tag => `
+    <div class="tag-editor-row">
+      <button class="btn btn-secondary tag-choice ${detailTags.has(tag) ? 'active' : ''}" type="button" data-toggle-tag="${esc(tag)}">${esc(tag)}</button>
+      <button class="btn btn-danger btn-icon" type="button" data-delete-tag="${esc(tag)}">x</button>
+    </div>
+  `).join('');
+}
+
+function toggleDetailTag(tag) {
+  if (detailTags.has(tag)) {
+    detailTags.delete(tag);
+  } else {
+    detailTags.add(tag);
+  }
+  renderDetailTags();
+}
+
+async function addDetailTag() {
+  const tag = newTagInput.value.trim();
+  if (!tag) return;
+  tags = normalizeTagList([...tags, tag]);
+  detailTags.add(tag);
+  newTagInput.value = '';
+  await saveItems();
+  renderDetailTags();
+  renderFilters();
+}
+
+async function deleteTag(tag) {
+  const used = items.filter(item => (item.tags || []).includes(tag)).length;
+  const message = used
+    ? `刪除「${tag}」？${used} 筆連結會移除這個標籤。`
+    : `刪除「${tag}」？`;
+  if (!confirm(message)) return;
+  tags = tags.filter(item => item !== tag);
+  detailTags.delete(tag);
+  selectedTags.delete(tag);
+  items = items.map(item => ({
+    ...item,
+    tags: (item.tags || []).filter(itemTag => itemTag !== tag),
+    updatedAt: (item.tags || []).includes(tag) ? Date.now() : item.updatedAt
+  }));
+  await saveItems();
+  renderDetailTags();
+  render();
 }
 
 function renderCategoryManager() {
@@ -1444,7 +1561,8 @@ function renderCategoryManager() {
 function renderFilters() {
   categories = getAllCategories();
   const filterCategories = [...categories].sort();
-  const filterTags = [...new Set(items.flatMap(item => item.tags || []))].sort();
+  tags = getAllTags();
+  const filterTags = [...tags].sort();
   selectedCategories = new Set([...selectedCategories].filter(category => filterCategories.includes(category)));
   selectedTags = new Set([...selectedTags].filter(tag => filterTags.includes(tag)));
   categoryFilterLabel.textContent = selectedCategories.size
@@ -1563,18 +1681,21 @@ async function init() {
     if (!hasServerItems && hasLocalItems) {
       items = localState.items;
       categories = normalizeCategoryList([...serverState.categories, ...localState.categories, ...items.map(item => item.category)]);
+      tags = normalizeTagList([...serverState.tags, ...localState.tags, ...items.flatMap(item => item.tags || [])]);
       isServerReady = true;
-      await writeServerState({ items, categories });
+      await writeServerState({ items, categories, tags });
       showToast('已改成伺服器保存');
     } else {
       items = serverState.items;
       categories = serverState.categories;
+      tags = serverState.tags;
       isServerReady = true;
     }
   } catch {
     const localState = getLocalState();
     items = localState.items;
     categories = localState.categories;
+    tags = localState.tags;
     isServerReady = false;
     showToast('連不上伺服器，暫時只顯示本機資料');
   }
