@@ -1,0 +1,1441 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IG 連結收集器</title>
+<link rel="icon" href="data:,">
+<style>
+  :root {
+    --bg: #f6f4f1;
+    --panel: #fffdf9;
+    --panel-soft: #f0f6f3;
+    --text: #202124;
+    --muted: #6d716f;
+    --line: #ddd8cf;
+    --primary: #126f57;
+    --primary-hover: #0d5d49;
+    --danger: #b42318;
+    --shadow: 0 14px 40px rgba(32, 33, 36, .08);
+    --radius: 8px;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Noto Sans TC", "Helvetica Neue", Arial, sans-serif;
+    letter-spacing: 0;
+  }
+
+  button, input, textarea, select { font: inherit; }
+  button { border: 0; }
+
+  .shell {
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns: 360px minmax(0, 1fr);
+  }
+
+  .side {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow: auto;
+    background: var(--panel);
+    border-right: 1px solid var(--line);
+    padding: 24px;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .brand h1 {
+    margin: 0;
+    font-size: 24px;
+    line-height: 1.2;
+    font-weight: 760;
+  }
+
+  .brand span {
+    display: block;
+    margin-top: 6px;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .counter {
+    width: 54px;
+    height: 54px;
+    flex: 0 0 54px;
+    border-radius: 50%;
+    background: var(--panel-soft);
+    color: var(--primary);
+    display: grid;
+    place-items: center;
+    font-weight: 760;
+    border: 1px solid #cfe1da;
+  }
+
+  .quick-capture {
+    display: grid;
+    gap: 14px;
+    padding: 16px;
+    background: var(--panel-soft);
+    border: 1px solid #d2e3dc;
+    border-radius: var(--radius);
+    margin-bottom: 0;
+  }
+
+  .capture-actions {
+    align-items: stretch;
+  }
+
+  .quick-capture h2 {
+    margin: 0;
+    font-size: 16px;
+    line-height: 1.4;
+  }
+
+  .quick-capture p, .help {
+    margin: 0;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.55;
+  }
+
+  .input, .textarea, .select {
+    width: 100%;
+    border: 1px solid var(--line);
+    background: #fff;
+    color: var(--text);
+    border-radius: var(--radius);
+    padding: 11px 12px;
+    outline: none;
+    min-height: 42px;
+  }
+
+  .textarea {
+    min-height: 108px;
+    resize: vertical;
+    line-height: 1.5;
+  }
+
+  .input:focus, .textarea:focus, .select:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(18, 111, 87, .12);
+  }
+
+  .btn-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .btn {
+    min-height: 42px;
+    padding: 10px 14px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-weight: 680;
+    transition: background .16s, border-color .16s, transform .16s;
+    white-space: nowrap;
+    text-decoration: none;
+  }
+
+  .btn:active { transform: translateY(1px); }
+  .btn:disabled {
+    opacity: .45;
+    cursor: not-allowed;
+  }
+
+  .btn-primary {
+    background: var(--primary);
+    color: #fff;
+  }
+
+  .btn-primary:hover { background: var(--primary-hover); }
+
+  .btn-secondary {
+    background: #fff;
+    color: var(--text);
+    border: 1px solid var(--line);
+  }
+
+  .btn-secondary:hover { background: #f7f7f5; }
+
+  .btn-danger {
+    background: #fff5f3;
+    color: var(--danger);
+    border: 1px solid #f0c7c0;
+  }
+
+  .btn-icon {
+    width: 38px;
+    height: 38px;
+    min-height: 38px;
+    padding: 0;
+    flex: 0 0 38px;
+  }
+
+  #manageCategoriesBtn {
+    width: auto;
+    min-width: 56px;
+    padding: 0 12px;
+  }
+
+  #hideDoneBtn {
+    width: auto;
+    min-width: 92px;
+    padding: 0 12px;
+  }
+
+  #hideDoneBtn.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+  }
+
+  .side-note {
+    border-top: 1px solid var(--line);
+    margin-top: 18px;
+    padding-top: 16px;
+    display: grid;
+    gap: 10px;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  .main {
+    min-width: 0;
+    padding: 24px;
+  }
+
+  .topbar {
+    display: grid;
+    grid-template-columns: minmax(220px, 1fr) minmax(180px, 220px) 160px auto;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 18px;
+  }
+
+  .toolbar-actions {
+    min-width: 0;
+  }
+
+  .multi-filter {
+    position: relative;
+  }
+
+  .filter-trigger {
+    width: 100%;
+    min-height: 42px;
+    border: 1px solid var(--line);
+    background: #fff;
+    color: var(--text);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-weight: 650;
+    text-align: left;
+  }
+
+  .filter-trigger:focus-visible {
+    outline: 0;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(18, 111, 87, .12);
+  }
+
+  .filter-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    z-index: 12;
+    display: none;
+    padding: 8px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    max-height: 260px;
+    overflow: auto;
+  }
+
+  .multi-filter.open .filter-menu {
+    display: grid;
+    gap: 6px;
+  }
+
+  .filter-option {
+    width: 100%;
+    border-radius: 7px;
+    padding: 9px 10px;
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    text-align: left;
+  }
+
+  .filter-option:hover {
+    background: #f7f7f5;
+  }
+
+  .filter-option.active {
+    background: #e5f2ed;
+    color: var(--primary);
+    font-weight: 700;
+  }
+
+  .filter-check {
+    width: 20px;
+    height: 20px;
+    border-radius: 5px;
+    border: 1px solid var(--line);
+    display: grid;
+    place-items: center;
+    flex: 0 0 20px;
+    color: #fff;
+    background: #fff;
+    font-size: 13px;
+  }
+
+  .filter-option.active .filter-check {
+    background: var(--primary);
+    border-color: var(--primary);
+  }
+
+  .quick-tags {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+  }
+
+  .pill {
+    border: 1px solid var(--line);
+    background: var(--panel);
+    color: var(--muted);
+    border-radius: 999px;
+    padding: 7px 12px;
+    cursor: pointer;
+    font-size: 13px;
+  }
+
+  .pill.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+  }
+
+  .board {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 14px;
+  }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    display: grid;
+    min-height: 224px;
+  }
+
+  .card-head {
+    min-height: 86px;
+    padding: 15px;
+    background: linear-gradient(135deg, #fffdf9 0%, #eef5f1 100%);
+    border-bottom: 1px solid var(--line);
+    display: grid;
+    gap: 10px;
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .card-title {
+    margin: 0;
+    font-size: 16px;
+    line-height: 1.35;
+    font-weight: 760;
+    overflow-wrap: anywhere;
+  }
+
+  .meta {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    flex-wrap: wrap;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    border-radius: 999px;
+    padding: 4px 9px;
+    font-size: 12px;
+    font-weight: 650;
+    background: #edf2f7;
+    color: #4a5568;
+  }
+
+  .badge.category { background: #e5f2ed; color: var(--primary); }
+  .badge.todo { background: #fff1df; color: #9a4d00; }
+  .badge.done { background: #e8f5ea; color: #206b35; }
+  .badge.raw { background: #f2eeea; color: #75685d; }
+
+  .card-body {
+    padding: 15px;
+    display: grid;
+    gap: 12px;
+  }
+
+  .note {
+    color: #464a48;
+    font-size: 14px;
+    line-height: 1.55;
+    min-height: 44px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  .tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-height: 25px;
+  }
+
+  .tag {
+    color: #5e4936;
+    background: #f3e8dc;
+    border-radius: 999px;
+    padding: 4px 8px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+
+  .card-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr 38px;
+    gap: 8px;
+    align-items: center;
+    margin-top: auto;
+  }
+
+  .empty {
+    min-height: 360px;
+    border: 1px dashed #cfc8bd;
+    border-radius: var(--radius);
+    display: grid;
+    place-items: center;
+    text-align: center;
+    padding: 30px;
+    color: var(--muted);
+    background: rgba(255, 253, 249, .62);
+  }
+
+  .empty h2 {
+    color: var(--text);
+    margin: 0 0 8px;
+    font-size: 22px;
+  }
+
+  .empty p {
+    margin: 0;
+    line-height: 1.6;
+  }
+
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    background: rgba(32, 33, 36, .42);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 18px;
+  }
+
+  .modal-backdrop.open { display: flex; }
+
+  .modal {
+    width: min(620px, 100%);
+    max-height: 92vh;
+    overflow: auto;
+    background: var(--panel);
+    border-radius: 12px;
+    box-shadow: 0 24px 80px rgba(0, 0, 0, .22);
+  }
+
+  .modal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 20px 20px 0;
+  }
+
+  .modal-head h2 {
+    margin: 0;
+    font-size: 20px;
+    line-height: 1.35;
+  }
+
+  .modal-body {
+    display: grid;
+    gap: 14px;
+    padding: 20px;
+  }
+
+  .field {
+    display: grid;
+    gap: 7px;
+  }
+
+  .field label {
+    font-size: 13px;
+    font-weight: 650;
+    color: #333735;
+  }
+
+  .row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .category-list {
+    display: grid;
+    gap: 8px;
+  }
+
+  .category-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-height: 44px;
+    padding: 8px 10px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: #fff;
+  }
+
+  .category-name {
+    font-weight: 650;
+    overflow-wrap: anywhere;
+  }
+
+  .category-count {
+    color: var(--muted);
+    font-size: 12px;
+    margin-left: auto;
+  }
+
+  .toast {
+    position: fixed;
+    right: 22px;
+    bottom: 22px;
+    background: #202124;
+    color: #fff;
+    padding: 12px 15px;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    opacity: 0;
+    transform: translateY(12px);
+    pointer-events: none;
+    transition: opacity .18s, transform .18s;
+    z-index: 30;
+  }
+
+  .toast.show {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .hidden { display: none; }
+
+  @media (max-width: 900px) {
+    .shell { grid-template-columns: 1fr; }
+    .side {
+      position: static;
+      height: auto;
+      border-right: 0;
+      border-bottom: 1px solid var(--line);
+      padding: 18px;
+    }
+    .quick-capture {
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 10px;
+      padding: 12px;
+    }
+    .quick-capture .input {
+      min-height: 46px;
+    }
+    .capture-actions {
+      flex-wrap: nowrap;
+    }
+    .topbar { grid-template-columns: minmax(0, 1fr) minmax(160px, 1fr); }
+    .toolbar-actions {
+      grid-column: 1 / -1;
+      overflow-x: auto;
+      padding-bottom: 2px;
+      -webkit-overflow-scrolling: touch;
+    }
+    .toolbar-actions .btn {
+      flex: 0 0 auto;
+    }
+  }
+
+  @media (max-width: 560px) {
+    body {
+      background: var(--panel);
+    }
+    .side {
+      padding: 12px;
+      background: var(--panel);
+    }
+    .main {
+      padding: 12px;
+    }
+    .brand { align-items: flex-start; }
+    .quick-capture {
+      grid-template-columns: 1fr;
+      padding: 12px;
+      border-radius: 10px;
+    }
+    .capture-actions {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+    }
+    .capture-actions .btn {
+      min-height: 48px;
+      padding: 10px 16px;
+    }
+    .row, .topbar {
+      grid-template-columns: 1fr;
+    }
+    .topbar {
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .topbar .input,
+    .topbar .select,
+    .filter-trigger {
+      min-height: 48px;
+      font-size: 16px;
+    }
+    .toolbar-actions {
+      display: flex;
+      flex-wrap: nowrap;
+      gap: 8px;
+      margin: 0 -12px;
+      padding: 0 12px 4px;
+      scrollbar-width: none;
+    }
+    .toolbar-actions::-webkit-scrollbar {
+      display: none;
+    }
+    #hideDoneBtn,
+    #manageCategoriesBtn {
+      min-width: max-content;
+      height: 44px;
+    }
+    .multi-filter.open .filter-menu {
+      position: static;
+      margin-top: 6px;
+      max-height: 220px;
+      box-shadow: none;
+    }
+    .filter-option {
+      min-height: 44px;
+      font-size: 15px;
+    }
+    .quick-tags {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      margin: 0 -12px 12px;
+      padding: 0 12px 2px;
+      scrollbar-width: none;
+    }
+    .quick-tags::-webkit-scrollbar {
+      display: none;
+    }
+    .pill {
+      flex: 0 0 auto;
+      min-height: 36px;
+    }
+    .board {
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+    .card {
+      min-height: 0;
+      box-shadow: none;
+    }
+    .card-head {
+      min-height: auto;
+      padding: 14px;
+    }
+    .card-title {
+      font-size: 17px;
+    }
+    .card-body {
+      padding: 14px;
+      gap: 10px;
+    }
+    .note {
+      min-height: 0;
+      font-size: 13px;
+    }
+    .card-actions {
+      grid-template-columns: 1fr 1fr auto;
+      gap: 8px;
+    }
+    .card-actions .btn {
+      min-height: 44px;
+    }
+    .empty {
+      min-height: 300px;
+      padding: 24px 18px;
+    }
+    .empty h2 {
+      font-size: 20px;
+    }
+    .empty p {
+      font-size: 14px;
+    }
+    .modal-backdrop {
+      align-items: flex-end;
+      padding: 0;
+    }
+    .modal {
+      width: 100%;
+      max-height: 92vh;
+      border-radius: 16px 16px 0 0;
+    }
+    .modal-head {
+      padding: 16px 16px 0;
+    }
+    .modal-body {
+      padding: 16px;
+      gap: 12px;
+    }
+    .modal-body .btn-row {
+      align-items: stretch;
+      flex-wrap: wrap;
+    }
+    .modal-body .btn-row .btn,
+    .modal-body .btn-row .input {
+      min-height: 46px;
+    }
+    .category-row {
+      min-height: 48px;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="side">
+    <div class="counter hidden" id="totalCount">0</div>
+    <form class="quick-capture" id="linkForm">
+      <input class="input" id="urlInput" type="text" placeholder="貼上 Instagram 連結" autocomplete="off" required>
+      <div class="btn-row capture-actions">
+        <button class="btn btn-primary" type="submit">保存</button>
+        <button class="btn btn-secondary" type="button" id="resetBtn">清空</button>
+      </div>
+    </form>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <input class="input" id="searchInput" type="search" placeholder="搜尋標題、分類、標籤、備註">
+      <div class="multi-filter" id="categoryFilter">
+        <button class="filter-trigger" type="button" id="categoryFilterButton" aria-expanded="false">
+          <span id="categoryFilterLabel">全部分類</span>
+          <span>⌄</span>
+        </button>
+        <div class="filter-menu" id="categoryFilterOptions"></div>
+      </div>
+      <select class="select" id="statusFilter">
+        <option value="">全部狀態</option>
+        <option value="todo">待參考</option>
+        <option value="done">已拍過</option>
+      </select>
+      <div class="btn-row toolbar-actions">
+        <button class="btn btn-secondary btn-icon" type="button" id="hideDoneBtn" title="隱藏已拍攝的連結">隱藏已拍</button>
+        <button class="btn btn-secondary btn-icon" type="button" id="manageCategoriesBtn" title="編輯分類">分類</button>
+        <button class="btn btn-secondary btn-icon" type="button" id="randomBtn" title="隨機打開一個待參考連結">?</button>
+        <button class="btn btn-secondary btn-icon" type="button" id="exportBtn" title="匯出備份">↓</button>
+        <button class="btn btn-secondary btn-icon" type="button" id="importBtn" title="匯入備份">↑</button>
+        <input class="hidden" id="importFile" type="file" accept="application/json">
+      </div>
+    </div>
+
+    <div class="quick-tags" id="quickTags"></div>
+    <section class="board" id="cards"></section>
+  </main>
+</div>
+
+<div class="modal-backdrop" id="detailModal" onclick="closeModalOnBackdrop(event)">
+  <form class="modal" id="detailForm">
+    <div class="modal-head">
+      <h2>整理連結</h2>
+      <button class="btn btn-secondary btn-icon" type="button" onclick="closeDetail()">x</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="detailId">
+      <div class="field">
+        <label for="detailUrl">IG 連結</label>
+        <input class="input" id="detailUrl" type="text" required>
+      </div>
+      <div class="field">
+        <label for="titleInput">標題</label>
+        <input class="input" id="titleInput" type="text" placeholder="例：開場構圖、運鏡參考、產品拍法" required>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label for="categoryInput">分類</label>
+          <select class="select" id="categoryInput">
+            <option>未分類</option>
+            <option>拍攝靈感</option>
+            <option>腳本</option>
+            <option>構圖</option>
+            <option>運鏡</option>
+            <option>剪輯</option>
+            <option>音樂</option>
+            <option>商品展示</option>
+            <option>競品觀察</option>
+            <option>其他</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="statusInput">狀態</label>
+          <select class="select" id="statusInput">
+            <option value="todo">待參考</option>
+            <option value="done">已拍過</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label for="tagsInput">標籤</label>
+        <input class="input" id="tagsInput" type="text" placeholder="例：開頭, 轉場, 食物, 手部特寫">
+        <div class="help">用逗號或空白分隔。</div>
+      </div>
+      <div class="field">
+        <label for="noteInput">備註</label>
+        <textarea class="textarea" id="noteInput" placeholder="寫下拍攝時要看的重點，例如鏡頭角度、節奏、道具、文案方向。"></textarea>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" type="submit">儲存整理</button>
+        <a class="btn btn-secondary" id="modalOpenLink" href="#" target="_blank" rel="noopener">開啟 IG</a>
+        <button class="btn btn-danger" type="button" id="modalDeleteBtn">刪除</button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<div class="modal-backdrop" id="categoryModal" onclick="closeCategoryModalOnBackdrop(event)">
+  <div class="modal">
+    <div class="modal-head">
+      <h2>編輯分類</h2>
+      <button class="btn btn-secondary btn-icon" type="button" onclick="closeCategoryManager()">x</button>
+    </div>
+    <div class="modal-body">
+      <div class="btn-row">
+        <input class="input" id="newCategoryInput" type="text" placeholder="新增分類">
+        <button class="btn btn-primary" type="button" id="addCategoryBtn">新增</button>
+      </div>
+      <div class="category-list" id="categoryList"></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const STORAGE_KEY = 'ig-link-collector-v1';
+const CATEGORY_STORAGE_KEY = 'ig-link-categories-v1';
+const DEFAULT_CATEGORIES = ['未分類', '拍攝靈感', '腳本', '構圖', '運鏡', '剪輯', '音樂', '商品展示', '競品觀察', '其他'];
+const form = document.getElementById('linkForm');
+const detailForm = document.getElementById('detailForm');
+const detailModal = document.getElementById('detailModal');
+const categoryModal = document.getElementById('categoryModal');
+const detailId = document.getElementById('detailId');
+const urlInput = document.getElementById('urlInput');
+const detailUrl = document.getElementById('detailUrl');
+const titleInput = document.getElementById('titleInput');
+const categoryInput = document.getElementById('categoryInput');
+const statusInput = document.getElementById('statusInput');
+const tagsInput = document.getElementById('tagsInput');
+const noteInput = document.getElementById('noteInput');
+const searchInput = document.getElementById('searchInput');
+const categoryFilter = document.getElementById('categoryFilter');
+const categoryFilterButton = document.getElementById('categoryFilterButton');
+const categoryFilterLabel = document.getElementById('categoryFilterLabel');
+const categoryFilterOptions = document.getElementById('categoryFilterOptions');
+const statusFilter = document.getElementById('statusFilter');
+const cards = document.getElementById('cards');
+const quickTags = document.getElementById('quickTags');
+const totalCount = document.getElementById('totalCount');
+const toastEl = document.getElementById('toast');
+const modalOpenLink = document.getElementById('modalOpenLink');
+const modalDeleteBtn = document.getElementById('modalDeleteBtn');
+const categoryList = document.getElementById('categoryList');
+const newCategoryInput = document.getElementById('newCategoryInput');
+const hideDoneBtn = document.getElementById('hideDoneBtn');
+let items = loadItems();
+let categories = loadCategories();
+let activeTag = '';
+let selectedCategories = new Set();
+let hideDone = false;
+
+function loadItems() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    return Array.isArray(saved) ? saved : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveItems() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+}
+
+function loadCategories() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(CATEGORY_STORAGE_KEY) || '[]');
+    const source = Array.isArray(saved) && saved.length ? saved : DEFAULT_CATEGORIES;
+    return normalizeCategoryList(source);
+  } catch {
+    return [...DEFAULT_CATEGORIES];
+  }
+}
+
+function saveCategories() {
+  localStorage.setItem(CATEGORY_STORAGE_KEY, JSON.stringify(categories));
+}
+
+function normalizeCategoryList(list) {
+  const normalized = list.map(category => String(category || '').trim()).filter(Boolean);
+  return [...new Set(['未分類', ...normalized])];
+}
+
+function uid() {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function normalizeTags(value) {
+  return String(value || '')
+    .split(/[,，\s]+/)
+    .map(tag => tag.trim())
+    .filter(Boolean)
+    .filter((tag, index, arr) => arr.indexOf(tag) === index);
+}
+
+function esc(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function jsArg(value) {
+  return JSON.stringify(String(value || '')).replace(/</g, '\\u003c');
+}
+
+function getHost(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return '';
+  }
+}
+
+function normalizeUrl(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  if (/^https?:\/\//i.test(raw)) return raw;
+  return `https://${raw}`;
+}
+
+function isValidUrl(value) {
+  try {
+    new URL(value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function inferTitle(url) {
+  try {
+    const parsed = new URL(url);
+    const parts = parsed.pathname.split('/').filter(Boolean);
+    if (parsed.hostname.includes('instagram.com')) {
+      if (parts[0] === 'reel') return `Reels ${parts[1] || ''}`.trim();
+      if (parts[0] === 'p') return `貼文 ${parts[1] || ''}`.trim();
+      if (parts[0]) return `@${parts[0]}`;
+    }
+    return parsed.hostname.replace(/^www\./, '');
+  } catch {
+    return '未命名連結';
+  }
+}
+
+function isOrganized(item) {
+  return item.category !== '未分類' || (item.tags || []).length > 0 || Boolean(item.note);
+}
+
+form.addEventListener('submit', event => {
+  event.preventDefault();
+  const url = normalizeUrl(urlInput.value);
+  if (!url) {
+    showToast('請貼上連結');
+    return;
+  }
+  if (!isValidUrl(url)) {
+    showToast('連結格式不對');
+    return;
+  }
+
+  const duplicate = items.find(item => item.url === url);
+  if (duplicate) {
+    showToast('這個連結已經保存過');
+    openDetail(duplicate.id);
+    return;
+  }
+
+  const item = {
+    id: uid(),
+    url,
+    title: inferTitle(url),
+    category: '未分類',
+    status: 'todo',
+    tags: [],
+    note: '',
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  };
+  items.unshift(item);
+  saveItems();
+  form.reset();
+  render();
+  showToast('已先保存');
+  urlInput.focus();
+});
+
+detailForm.addEventListener('submit', event => {
+  event.preventDefault();
+  const id = detailId.value;
+  const existing = items.find(item => item.id === id);
+  if (!existing) return;
+  const normalizedDetailUrl = normalizeUrl(detailUrl.value);
+  if (!isValidUrl(normalizedDetailUrl)) {
+    showToast('連結格式不對');
+    return;
+  }
+
+  const updated = {
+    ...existing,
+    url: normalizedDetailUrl,
+    title: titleInput.value.trim() || inferTitle(normalizedDetailUrl),
+    category: categoryInput.value,
+    status: statusInput.value,
+    tags: normalizeTags(tagsInput.value),
+    note: noteInput.value.trim(),
+    updatedAt: Date.now()
+  };
+  items = items.map(item => item.id === id ? updated : item);
+  saveItems();
+  closeDetail();
+  render();
+  showToast('已儲存整理');
+});
+
+document.getElementById('resetBtn').addEventListener('click', () => {
+  form.reset();
+  urlInput.focus();
+});
+searchInput.addEventListener('input', render);
+statusFilter.addEventListener('change', render);
+hideDoneBtn.addEventListener('click', () => {
+  hideDone = !hideDone;
+  render();
+});
+document.getElementById('manageCategoriesBtn').addEventListener('click', openCategoryManager);
+document.getElementById('addCategoryBtn').addEventListener('click', addCategory);
+newCategoryInput.addEventListener('keydown', event => {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    addCategory();
+  }
+});
+categoryFilterButton.addEventListener('click', () => {
+  const open = categoryFilter.classList.toggle('open');
+  categoryFilterButton.setAttribute('aria-expanded', String(open));
+});
+categoryFilterOptions.addEventListener('click', event => {
+  event.stopPropagation();
+  const option = event.target.closest('[data-filter-category]');
+  if (option) toggleCategoryFilter(option.dataset.filterCategory);
+});
+categoryList.addEventListener('click', event => {
+  const button = event.target.closest('[data-delete-category]');
+  if (button) deleteCategory(button.dataset.deleteCategory);
+});
+
+document.addEventListener('click', event => {
+  if (!categoryFilter.contains(event.target)) {
+    categoryFilter.classList.remove('open');
+    categoryFilterButton.setAttribute('aria-expanded', 'false');
+  }
+});
+
+document.getElementById('randomBtn').addEventListener('click', () => {
+  const pool = items.filter(item => item.status !== 'done');
+  if (!pool.length) {
+    showToast('目前沒有待參考連結');
+    return;
+  }
+  const item = pool[Math.floor(Math.random() * pool.length)];
+  window.open(item.url, '_blank', 'noopener');
+});
+
+document.getElementById('exportBtn').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify(items, null, 2)], { type: 'application/json' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `ig-links-${new Date().toISOString().slice(0, 10)}.json`;
+  link.click();
+  URL.revokeObjectURL(link.href);
+  showToast('已匯出備份');
+});
+
+document.getElementById('importBtn').addEventListener('click', () => {
+  document.getElementById('importFile').click();
+});
+
+document.getElementById('importFile').addEventListener('change', async event => {
+  const file = event.target.files[0];
+  if (!file) return;
+  try {
+    const imported = JSON.parse(await file.text());
+    if (!Array.isArray(imported)) throw new Error('invalid');
+    const cleaned = imported
+      .filter(item => item && item.url)
+      .map(item => ({
+        id: item.id || uid(),
+        url: item.url,
+        title: item.title || inferTitle(item.url),
+        category: item.category || '未分類',
+        status: item.status || 'todo',
+        tags: Array.isArray(item.tags) ? item.tags : [],
+        note: item.note || '',
+        createdAt: Number(item.createdAt || Date.now()),
+        updatedAt: Number(item.updatedAt || Date.now())
+      }));
+    items = cleaned.concat(items);
+    categories = normalizeCategoryList([...categories, ...cleaned.map(item => item.category)]);
+    saveCategories();
+    saveItems();
+    render();
+    showToast(`已匯入 ${cleaned.length} 筆`);
+  } catch {
+    showToast('匯入失敗，檔案格式不正確');
+  }
+  event.target.value = '';
+});
+
+modalDeleteBtn.addEventListener('click', () => {
+  removeItem(detailId.value);
+});
+
+function openDetail(id) {
+  const item = items.find(entry => entry.id === id);
+  if (!item) return;
+  if (!categories.includes(item.category || '未分類')) {
+    categories = normalizeCategoryList([...categories, item.category || '未分類']);
+    saveCategories();
+  }
+  renderCategorySelect(item.category || '未分類');
+  detailId.value = item.id;
+  detailUrl.value = item.url;
+  titleInput.value = item.title || inferTitle(item.url);
+  categoryInput.value = item.category || '未分類';
+  statusInput.value = item.status || 'todo';
+  tagsInput.value = (item.tags || []).join(', ');
+  noteInput.value = item.note || '';
+  modalOpenLink.href = item.url;
+  detailModal.classList.add('open');
+  setTimeout(() => titleInput.focus(), 80);
+}
+
+function closeDetail() {
+  detailModal.classList.remove('open');
+}
+
+function closeModalOnBackdrop(event) {
+  if (event.target === detailModal) closeDetail();
+}
+
+function openCategoryManager() {
+  renderCategoryManager();
+  categoryModal.classList.add('open');
+  setTimeout(() => newCategoryInput.focus(), 80);
+}
+
+function closeCategoryManager() {
+  categoryModal.classList.remove('open');
+}
+
+function closeCategoryModalOnBackdrop(event) {
+  if (event.target === categoryModal) closeCategoryManager();
+}
+
+function addCategory() {
+  const category = newCategoryInput.value.trim();
+  if (!category) return;
+  if (categories.includes(category)) {
+    showToast('分類已存在');
+    newCategoryInput.value = '';
+    return;
+  }
+  categories = normalizeCategoryList([...categories, category]);
+  saveCategories();
+  newCategoryInput.value = '';
+  render();
+  renderCategoryManager();
+  showToast('已新增分類');
+}
+
+function deleteCategory(category) {
+  if (category === '未分類') {
+    showToast('未分類不能刪除');
+    return;
+  }
+  const used = items.filter(item => item.category === category).length;
+  const message = used
+    ? `刪除「${category}」？${used} 筆連結會改為未分類。`
+    : `刪除「${category}」？`;
+  if (!confirm(message)) return;
+  categories = categories.filter(item => item !== category);
+  items = items.map(item => item.category === category ? { ...item, category: '未分類', updatedAt: Date.now() } : item);
+  selectedCategories.delete(category);
+  saveCategories();
+  saveItems();
+  render();
+  renderCategoryManager();
+  showToast('已刪除分類');
+}
+
+function removeItem(id) {
+  const item = items.find(entry => entry.id === id);
+  if (!item || !confirm(`確定刪除「${item.title || item.url}」？`)) return;
+  items = items.filter(entry => entry.id !== id);
+  saveItems();
+  closeDetail();
+  render();
+  showToast('已刪除');
+}
+
+function toggleStatus(id) {
+  items = items.map(item => {
+    if (item.id !== id) return item;
+    return { ...item, status: item.status === 'done' ? 'todo' : 'done', updatedAt: Date.now() };
+  });
+  saveItems();
+  render();
+}
+
+function copyUrl(id) {
+  const item = items.find(entry => entry.id === id);
+  if (!item) return;
+  navigator.clipboard.writeText(item.url).then(
+    () => showToast('已複製連結'),
+    () => showToast('複製失敗')
+  );
+}
+
+function setTag(tag) {
+  activeTag = activeTag === tag ? '' : tag;
+  render();
+}
+
+function toggleCategoryFilter(category) {
+  if (category === '__all__') {
+    selectedCategories.clear();
+  } else if (selectedCategories.has(category)) {
+    selectedCategories.delete(category);
+  } else {
+    selectedCategories.add(category);
+  }
+  render();
+}
+
+function getFilteredItems() {
+  const q = searchInput.value.trim().toLowerCase();
+  return items.filter(item => {
+    const blob = [
+      item.title,
+      item.url,
+      item.category,
+      item.note,
+      ...(item.tags || [])
+    ].join(' ').toLowerCase();
+    return (!q || blob.includes(q))
+      && (!selectedCategories.size || selectedCategories.has(item.category || '未分類'))
+      && (!hideDone || item.status !== 'done')
+      && (!statusFilter.value || item.status === statusFilter.value)
+      && (!activeTag || (item.tags || []).includes(activeTag));
+  });
+}
+
+function getAllCategories() {
+  return normalizeCategoryList([...categories, ...items.map(item => item.category || '未分類')]);
+}
+
+function renderCategorySelect(selected = categoryInput.value || '未分類') {
+  const list = getAllCategories();
+  categoryInput.innerHTML = list.map(category => `<option>${esc(category)}</option>`).join('');
+  categoryInput.value = list.includes(selected) ? selected : '未分類';
+}
+
+function renderCategoryManager() {
+  const list = getAllCategories();
+  categoryList.innerHTML = list.map(category => {
+    const count = items.filter(item => (item.category || '未分類') === category).length;
+    const canDelete = category !== '未分類';
+    return `
+      <div class="category-row">
+        <span class="category-name">${esc(category)}</span>
+        <span class="category-count">${count} 筆</span>
+        <button class="btn btn-danger btn-icon" type="button" ${canDelete ? `data-delete-category="${esc(category)}"` : 'disabled'}>x</button>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderFilters() {
+  categories = getAllCategories();
+  const filterCategories = [...categories].sort();
+  selectedCategories = new Set([...selectedCategories].filter(category => filterCategories.includes(category)));
+  categoryFilterLabel.textContent = selectedCategories.size
+    ? `已選 ${selectedCategories.size} 個分類`
+    : '全部分類';
+  categoryFilterOptions.innerHTML = `
+    <button class="filter-option ${selectedCategories.size ? '' : 'active'}" type="button" data-filter-category="__all__">
+      <span>全部分類</span><span class="filter-check">${selectedCategories.size ? '' : '✓'}</span>
+    </button>
+    ${filterCategories.map(category => `
+      <button class="filter-option ${selectedCategories.has(category) ? 'active' : ''}" type="button" data-filter-category="${esc(category)}">
+        <span>${esc(category)}</span><span class="filter-check">${selectedCategories.has(category) ? '✓' : ''}</span>
+      </button>
+    `).join('')}
+  `;
+  renderCategorySelect();
+
+  const tags = [...new Set(items.flatMap(item => item.tags || []))].sort();
+  quickTags.innerHTML = tags.map(tag => {
+    const count = items.filter(item => (item.tags || []).includes(tag)).length;
+    return `<button class="pill ${activeTag === tag ? 'active' : ''}" type="button" onclick="setTag('${esc(tag)}')">${esc(tag)} ${count}</button>`;
+  }).join('');
+}
+
+function render() {
+  renderFilters();
+  totalCount.textContent = items.length;
+  hideDoneBtn.classList.toggle('active', hideDone);
+  hideDoneBtn.textContent = hideDone ? '顯示已拍' : '隱藏已拍';
+  const list = getFilteredItems();
+  if (!list.length) {
+    cards.innerHTML = `
+      <div class="empty" style="grid-column:1/-1">
+        <div>
+          <h2>${items.length ? '找不到符合的連結' : '先貼上第一個 IG 連結'}</h2>
+          <p>${items.length ? '換個關鍵字、分類或標籤再試一次。' : '先快速保存，之後點「整理」再補分類、標籤和拍攝備註。'}</p>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  cards.innerHTML = list.map(item => {
+    const organized = isOrganized(item);
+    const statusText = item.status === 'done' ? '已拍過' : '待參考';
+    const noteText = item.note || (organized ? '' : '尚未整理。需要時再打開整理面板補標籤與備註。');
+    return `
+      <article class="card">
+        <button class="card-head" type="button" onclick="openDetail('${item.id}')">
+          <h2 class="card-title">${esc(item.title || inferTitle(item.url))}</h2>
+          <div class="meta">
+            <span class="badge ${organized ? 'category' : 'raw'}">${esc(item.category || '未分類')}</span>
+            <span class="badge ${item.status === 'done' ? 'done' : 'todo'}">${statusText}</span>
+            <span class="badge">${esc(getHost(item.url) || 'link')}</span>
+          </div>
+        </button>
+        <div class="card-body">
+          <div class="note">${esc(noteText)}</div>
+          <div class="tags">${(item.tags || []).map(tag => `<button class="tag" type="button" onclick="setTag('${esc(tag)}')">${esc(tag)}</button>`).join('')}</div>
+          <div class="card-actions">
+            <a class="btn btn-primary" href="${esc(item.url)}" target="_blank" rel="noopener">開啟 IG</a>
+            <button class="btn btn-secondary" type="button" onclick="openDetail('${item.id}')">整理</button>
+            <button class="btn btn-secondary btn-icon" type="button" onclick="copyUrl('${item.id}')" title="複製">⧉</button>
+          </div>
+          <button class="btn btn-secondary" type="button" onclick="toggleStatus('${item.id}')">${item.status === 'done' ? '改待參考' : '標記已拍'}</button>
+        </div>
+      </article>
+    `;
+  }).join('');
+}
+
+function showToast(message) {
+  toastEl.textContent = message;
+  toastEl.classList.add('show');
+  clearTimeout(showToast.timer);
+  showToast.timer = setTimeout(() => toastEl.classList.remove('show'), 1800);
+}
+
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape') {
+    closeDetail();
+    closeCategoryManager();
+  }
+});
+
+render();
+</script>
+</body>
+</html>
