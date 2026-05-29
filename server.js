@@ -6,6 +6,7 @@ const PORT = Number(process.env.PORT || 3137);
 const DATA_FILE = process.env.DATA_FILE || path.join(__dirname, 'ig-links-data.json');
 const DEFAULT_CATEGORIES = ['未分類', '拍攝靈感', '腳本', '構圖', '運鏡', '剪輯', '音樂', '商品展示', '競品觀察', '其他'];
 const MAX_BODY_BYTES = 1024 * 1024;
+const MAX_PREVIEW_BYTES = 2 * 1024 * 1024;
 
 function normalizeCategoryList(list) {
   const normalized = (Array.isArray(list) ? list : [])
@@ -35,6 +36,7 @@ function normalizeItem(item) {
     status: normalizeStatus(item.status),
     tags: normalizeTags(item.tags),
     note: String(item.note || '').trim(),
+    thumbnailUrl: String(item.thumbnailUrl || '').trim(),
     createdAt: Number(item.createdAt || now),
     updatedAt: Number(item.updatedAt || now)
   };
@@ -111,6 +113,70 @@ function readBody(req) {
   });
 }
 
+function decodeHtml(value) {
+  return String(value || '')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>');
+}
+
+function findMetaContent(html, names) {
+  for (const name of names) {
+    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const patterns = [
+      new RegExp(`<meta[^>]+(?:property|name)=["']${escaped}["'][^>]+content=["']([^"']+)["'][^>]*>`, 'i'),
+      new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']${escaped}["'][^>]*>`, 'i')
+    ];
+    for (const pattern of patterns) {
+      const match = html.match(pattern);
+      if (match) return decodeHtml(match[1]);
+    }
+  }
+  return '';
+}
+
+async function fetchPreview(targetUrl) {
+  let parsed;
+  try {
+    parsed = new URL(targetUrl);
+  } catch {
+    throw Object.assign(new Error('invalid url'), { statusCode: 400 });
+  }
+  if (!['http:', 'https:'].includes(parsed.protocol)) {
+    throw Object.assign(new Error('invalid url'), { statusCode: 400 });
+  }
+
+  const response = await fetch(parsed.href, {
+    redirect: 'follow',
+    signal: AbortSignal.timeout(8000),
+    headers: {
+      'accept': 'text/html,application/xhtml+xml',
+      'accept-language': 'zh-TW,zh;q=0.9,en;q=0.8',
+      'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36'
+    }
+  });
+  if (!response.ok) {
+    throw Object.assign(new Error('preview unavailable'), { statusCode: 502 });
+  }
+
+  const reader = response.body.getReader();
+  const chunks = [];
+  let received = 0;
+  while (received < MAX_PREVIEW_BYTES) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    received += value.length;
+    chunks.push(value);
+  }
+  const html = Buffer.concat(chunks).toString('utf8');
+  return {
+    title: findMetaContent(html, ['og:title', 'twitter:title']),
+    thumbnailUrl: findMetaContent(html, ['og:image', 'og:image:secure_url', 'twitter:image'])
+  };
+}
+
 const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
@@ -122,6 +188,15 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/ig-links.html')) {
       await sendHtml(res);
+      return;
+    }
+
+    if (url.pathname === '/api/preview') {
+      if (req.method !== 'GET') {
+        sendJson(res, 405, { error: 'method not allowed' });
+        return;
+      }
+      sendJson(res, 200, await fetchPreview(url.searchParams.get('url') || ''));
       return;
     }
 
