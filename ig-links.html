@@ -434,7 +434,6 @@
     color: #464a48;
     font-size: 14px;
     line-height: 1.55;
-    min-height: 44px;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
   }
@@ -457,10 +456,16 @@
 
   .card-actions {
     display: grid;
-    grid-template-columns: 1fr 1fr 38px;
+    grid-template-columns: 1fr 1fr 38px 86px;
     gap: 8px;
     align-items: center;
     margin-top: auto;
+  }
+
+  .card-actions .btn {
+    min-height: 38px;
+    padding: 8px 10px;
+    font-size: 13px;
   }
 
   .empty {
@@ -731,15 +736,20 @@
       gap: 10px;
     }
     .note {
-      min-height: 0;
       font-size: 13px;
     }
     .card-actions {
-      grid-template-columns: 1fr 1fr auto;
-      gap: 8px;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 6px;
     }
     .card-actions .btn {
-      min-height: 44px;
+      min-height: 38px;
+      padding: 7px 8px;
+      font-size: 13px;
+    }
+    .card-actions .btn-icon {
+      width: auto;
+      flex: initial;
     }
     .empty {
       min-height: 300px;
@@ -1483,7 +1493,8 @@ function render() {
   cards.innerHTML = list.map(item => {
     const organized = isOrganized(item);
     const statusText = item.status === 'done' ? '已拍過' : '待參考';
-    const noteText = item.note || (organized ? '' : '尚未整理。需要時再打開整理面板補標籤與備註。');
+    const noteText = item.note || '';
+    const note = noteText ? `<div class="note">${esc(noteText)}</div>` : '';
     const thumbnail = item.thumbnailUrl
       ? `<div class="thumb"><img src="${esc(item.thumbnailUrl)}" alt="" loading="lazy" referrerpolicy="no-referrer"></div>`
       : '';
@@ -1499,14 +1510,14 @@ function render() {
           </div>
         </button>
         <div class="card-body">
-          <div class="note">${esc(noteText)}</div>
+          ${note}
           <div class="tags">${(item.tags || []).map(tag => `<button class="tag" type="button" onclick="setTag('${esc(tag)}')">${esc(tag)}</button>`).join('')}</div>
           <div class="card-actions">
-            <a class="btn btn-primary" href="${esc(item.url)}" target="_blank" rel="noopener">開啟 IG</a>
+            <a class="btn btn-primary" href="${esc(item.url)}" target="_blank" rel="noopener">開啟</a>
             <button class="btn btn-secondary" type="button" onclick="openDetail('${item.id}')">整理</button>
             <button class="btn btn-secondary btn-icon" type="button" onclick="copyUrl('${item.id}')" title="複製">⧉</button>
+            <button class="btn btn-secondary" type="button" onclick="toggleStatus('${item.id}')">${item.status === 'done' ? '待參考' : '已拍'}</button>
           </div>
-          <button class="btn btn-secondary" type="button" onclick="toggleStatus('${item.id}')">${item.status === 'done' ? '改待參考' : '標記已拍'}</button>
         </div>
       </article>
     `;
