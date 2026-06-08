@@ -50,9 +50,9 @@ function normalizeState(state) {
     ...(state && state.tags || []),
     ...items.flatMap(item => item.tags)
   ]);
+  const savedCategories = Array.isArray(state && state.categories) ? state.categories : [];
   const categories = normalizeCategoryList([
-    ...DEFAULT_CATEGORIES,
-    ...(state && state.categories || []),
+    ...(savedCategories.length ? savedCategories : DEFAULT_CATEGORIES),
     ...items.map(item => item.category)
   ]);
   return { items, categories, tags };
@@ -83,7 +83,10 @@ function sendJson(res, status, payload) {
   res.writeHead(status, {
     'content-type': 'application/json; charset=utf-8',
     'cache-control': 'no-store',
-    'x-content-type-options': 'nosniff'
+    'x-content-type-options': 'nosniff',
+    'access-control-allow-origin': '*',
+    'access-control-allow-methods': 'GET, PUT, OPTIONS',
+    'access-control-allow-headers': 'content-type'
   });
   res.end(JSON.stringify(payload));
 }
@@ -184,6 +187,11 @@ async function fetchPreview(targetUrl) {
 const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+
+    if (req.method === 'OPTIONS') {
+      sendJson(res, 204, {});
+      return;
+    }
 
     if (req.method === 'GET' && url.pathname === '/healthz') {
       sendJson(res, 200, { ok: true });

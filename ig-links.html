@@ -233,6 +233,15 @@
     margin-bottom: 18px;
   }
 
+  .filter-toggle {
+    width: 100%;
+    margin-bottom: 10px;
+  }
+
+  .topbar.collapsed {
+    display: none;
+  }
+
   .toolbar-actions {
     min-width: 0;
   }
@@ -334,6 +343,7 @@
   }
 
   .card {
+    position: relative;
     background: var(--panel);
     border: 1px solid var(--line);
     border-radius: var(--radius);
@@ -365,7 +375,6 @@
     border-bottom: 1px solid var(--line);
     display: grid;
     gap: 10px;
-    cursor: pointer;
     text-align: left;
   }
 
@@ -375,6 +384,34 @@
     line-height: 1.35;
     font-weight: 760;
     overflow-wrap: anywhere;
+  }
+
+  .title-edit-trigger {
+    width: 100%;
+    padding: 0;
+    background: transparent;
+    color: inherit;
+    cursor: text;
+    display: block;
+    text-align: left;
+    font: inherit;
+    font-weight: inherit;
+    line-height: inherit;
+    overflow-wrap: anywhere;
+  }
+
+  .title-edit-input {
+    width: 100%;
+    border: 1px solid var(--primary);
+    border-radius: 7px;
+    padding: 8px 9px;
+    background: #fff;
+    color: var(--text);
+    font: inherit;
+    font-weight: inherit;
+    line-height: inherit;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(18, 111, 87, .12);
   }
 
   .meta {
@@ -394,6 +431,23 @@
     font-weight: 650;
     background: #edf2f7;
     color: #4a5568;
+  }
+
+  .badge-button {
+    border: 0;
+    cursor: pointer;
+  }
+
+  .badge-select {
+    min-height: 24px;
+    border: 1px solid #cfe1da;
+    border-radius: 999px;
+    padding: 3px 8px;
+    background: #fff;
+    color: var(--primary);
+    font-size: 12px;
+    font-weight: 650;
+    outline: none;
   }
 
   .badge.category { background: #e5f2ed; color: var(--primary); }
@@ -433,7 +487,7 @@
 
   .card-actions {
     display: grid;
-    grid-template-columns: 1fr 1fr 38px 86px;
+    grid-template-columns: 1fr 1fr;
     gap: 8px;
     align-items: center;
     margin-top: auto;
@@ -443,6 +497,19 @@
     min-height: 38px;
     padding: 8px 10px;
     font-size: 13px;
+  }
+
+  .copy-float {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 2;
+    width: 34px;
+    height: 34px;
+    min-height: 34px;
+    padding: 0;
+    background: rgba(255, 255, 255, .86);
+    backdrop-filter: blur(8px);
   }
 
   .empty {
@@ -624,7 +691,10 @@
   .hidden { display: none; }
 
   @media (max-width: 900px) {
-    .shell { grid-template-columns: 1fr; }
+    .shell {
+      display: block;
+      min-height: auto;
+    }
     .side {
       position: static;
       height: auto;
@@ -747,7 +817,7 @@
       font-size: 13px;
     }
     .card-actions {
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 6px;
     }
     .card-actions .btn {
@@ -807,13 +877,14 @@
       <input class="input" id="urlInput" type="text" placeholder="貼上 Instagram 連結" autocomplete="off" required>
       <div class="btn-row capture-actions">
         <button class="btn btn-primary" type="submit">保存</button>
-        <button class="btn btn-secondary" type="button" id="resetBtn">清空</button>
+        <button class="btn btn-secondary btn-icon hidden" type="button" id="resetBtn" title="清空">x</button>
       </div>
     </form>
   </aside>
 
   <main class="main">
-    <div class="topbar">
+    <button class="btn btn-secondary filter-toggle" type="button" id="filterToggle" aria-label="展開篩選" title="展開篩選" aria-expanded="false">⌄</button>
+    <div class="topbar collapsed" id="filterPanel">
       <input class="input" id="searchInput" type="search" placeholder="搜尋標題、分類、備註">
       <div class="multi-filter" id="categoryFilter">
         <button class="filter-trigger" type="button" id="categoryFilterButton" aria-expanded="false">
@@ -902,7 +973,6 @@
         <textarea class="textarea" id="noteInput" placeholder="寫下拍攝時要看的重點，例如鏡頭角度、節奏、道具、文案方向。"></textarea>
       </div>
       <div class="btn-row">
-        <button class="btn btn-primary" type="submit">儲存整理</button>
         <a class="btn btn-secondary" id="modalOpenLink" href="#" target="_blank" rel="noopener">開啟 IG</a>
         <button class="btn btn-danger" type="button" id="modalDeleteBtn">刪除</button>
       </div>
@@ -929,8 +999,11 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const API_STATE_URL = '/api/state';
-const API_PREVIEW_URL = '/api/preview';
+const API_BASE_URL = location.hostname === 'localhost' || location.hostname === '127.0.0.1'
+  ? 'https://link.yaja168.com/api'
+  : '/api';
+const API_STATE_URL = `${API_BASE_URL}/state`;
+const API_PREVIEW_URL = `${API_BASE_URL}/preview`;
 const STORAGE_KEY = 'ig-link-collector-v1';
 const CATEGORY_STORAGE_KEY = 'ig-link-categories-v1';
 const DEFAULT_CATEGORIES = ['未分類', '拍攝靈感', '腳本', '構圖', '運鏡', '剪輯', '音樂', '商品展示', '競品觀察', '其他'];
@@ -948,6 +1021,8 @@ const noteInput = document.getElementById('noteInput');
 const detailTagList = document.getElementById('detailTagList');
 const newTagInput = document.getElementById('newTagInput');
 const searchInput = document.getElementById('searchInput');
+const filterToggle = document.getElementById('filterToggle');
+const filterPanel = document.getElementById('filterPanel');
 const categoryFilter = document.getElementById('categoryFilter');
 const categoryFilterButton = document.getElementById('categoryFilterButton');
 const categoryFilterLabel = document.getElementById('categoryFilterLabel');
@@ -972,7 +1047,9 @@ let selectedCategories = new Set();
 let selectedTags = new Set();
 let detailTags = new Set();
 let hideDone = false;
+let filtersOpen = false;
 let saveTimer = null;
+let detailSaveTimer = null;
 let isServerReady = false;
 
 function loadLocalItems() {
@@ -1016,9 +1093,9 @@ function normalizeState(state) {
     ...(Array.isArray(state && state.tags) ? state.tags : []),
     ...nextItems.flatMap(item => item.tags || [])
   ]);
+  const savedCategories = Array.isArray(state && state.categories) ? state.categories : [];
   const nextCategories = normalizeCategoryList([
-    ...DEFAULT_CATEGORIES,
-    ...(Array.isArray(state && state.categories) ? state.categories : []),
+    ...(savedCategories.length ? savedCategories : DEFAULT_CATEGORIES),
     ...nextItems.map(item => item.category || '未分類')
   ]);
   return { items: nextItems, categories: nextCategories, tags: nextTags };
@@ -1146,6 +1223,10 @@ function isOrganized(item) {
   return item.category !== '未分類' || (item.tags || []).length > 0 || Boolean(item.note);
 }
 
+function updateResetButton() {
+  document.getElementById('resetBtn').classList.toggle('hidden', !urlInput.value.trim());
+}
+
 form.addEventListener('submit', async event => {
   event.preventDefault();
   const url = normalizeUrl(urlInput.value);
@@ -1182,13 +1263,18 @@ form.addEventListener('submit', async event => {
   items.unshift(item);
   await saveItems();
   form.reset();
+  updateResetButton();
   render();
   showToast('已先保存');
   urlInput.focus();
 });
 
-detailForm.addEventListener('submit', async event => {
+detailForm.addEventListener('submit', event => {
   event.preventDefault();
+  saveDetailNow();
+});
+
+async function saveDetailNow() {
   const id = detailId.value;
   const existing = items.find(item => item.id === id);
   if (!existing) return;
@@ -1214,17 +1300,36 @@ detailForm.addEventListener('submit', async event => {
   items = items.map(item => item.id === id ? updated : item);
   tags = normalizeTagList([...tags, ...detailTags]);
   await saveItems();
-  closeDetail();
   render();
-  showToast('已儲存整理');
-});
+  showToast('已自動保存');
+}
+
+function scheduleDetailSave(delay = 500) {
+  clearTimeout(detailSaveTimer);
+  detailSaveTimer = setTimeout(() => saveDetailNow(), delay);
+}
 
 document.getElementById('resetBtn').addEventListener('click', () => {
   form.reset();
+  updateResetButton();
   urlInput.focus();
 });
+urlInput.addEventListener('input', updateResetButton);
 searchInput.addEventListener('input', render);
 statusFilter.addEventListener('change', render);
+filterToggle.addEventListener('click', () => {
+  filtersOpen = !filtersOpen;
+  filterPanel.classList.toggle('collapsed', !filtersOpen);
+  filterToggle.setAttribute('aria-expanded', String(filtersOpen));
+  filterToggle.textContent = filtersOpen ? '⌃' : '⌄';
+  filterToggle.setAttribute('aria-label', filtersOpen ? '收合篩選' : '展開篩選');
+  filterToggle.title = filtersOpen ? '收合篩選' : '展開篩選';
+});
+detailUrl.addEventListener('blur', () => scheduleDetailSave(0));
+titleInput.addEventListener('input', () => scheduleDetailSave());
+categoryInput.addEventListener('change', () => scheduleDetailSave(0));
+statusInput.addEventListener('change', () => scheduleDetailSave(0));
+noteInput.addEventListener('input', () => scheduleDetailSave());
 hideDoneBtn.addEventListener('click', () => {
   hideDone = !hideDone;
   render();
@@ -1377,6 +1482,8 @@ function openDetail(id) {
 }
 
 function closeDetail() {
+  clearTimeout(detailSaveTimer);
+  saveDetailNow();
   detailModal.classList.remove('open');
 }
 
@@ -1462,6 +1569,83 @@ function copyUrl(id) {
   );
 }
 
+function beginTitleEdit(event, id) {
+  event.stopPropagation();
+  const item = items.find(entry => entry.id === id);
+  const title = event.currentTarget.closest('.card-title');
+  if (!item || !title || title.querySelector('input')) return;
+
+  const input = document.createElement('input');
+  input.className = 'title-edit-input';
+  input.type = 'text';
+  input.value = item.title || inferTitle(item.url);
+  title.replaceChildren(input);
+  input.focus();
+  input.select();
+
+  let done = false;
+  const commit = async shouldSave => {
+    if (done) return;
+    done = true;
+    const nextTitle = input.value.trim();
+    if (shouldSave && nextTitle && nextTitle !== item.title) {
+      items = items.map(entry => entry.id === id
+        ? { ...entry, title: nextTitle, updatedAt: Date.now() }
+        : entry);
+      await saveItems();
+      showToast('標題已更新');
+    }
+    render();
+  };
+
+  input.addEventListener('blur', () => commit(true));
+  input.addEventListener('keydown', event => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      input.blur();
+    }
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      commit(false);
+    }
+  });
+}
+
+function beginCategoryEdit(event, id) {
+  event.stopPropagation();
+  const item = items.find(entry => entry.id === id);
+  const target = event.currentTarget;
+  if (!item || target.querySelector('select')) return;
+
+  const select = document.createElement('select');
+  select.className = 'badge-select';
+  getAllCategories().forEach(category => {
+    const option = document.createElement('option');
+    option.value = category;
+    option.textContent = category;
+    select.append(option);
+  });
+  select.value = item.category || '未分類';
+  target.replaceWith(select);
+  select.focus();
+
+  const commit = async shouldSave => {
+    const nextCategory = select.value || '未分類';
+    if (shouldSave && nextCategory !== item.category) {
+      items = items.map(entry => entry.id === id
+        ? { ...entry, category: nextCategory, updatedAt: Date.now() }
+        : entry);
+      categories = normalizeCategoryList([...categories, nextCategory]);
+      await saveItems();
+      showToast('分類已更新');
+    }
+    render();
+  };
+
+  select.addEventListener('change', () => commit(true));
+  select.addEventListener('blur', () => commit(false));
+}
+
 function toggleCategoryFilter(category) {
   if (category === '__all__') {
     selectedCategories.clear();
@@ -1537,6 +1721,7 @@ function toggleDetailTag(tag) {
     detailTags.add(tag);
   }
   renderDetailTags();
+  scheduleDetailSave(0);
 }
 
 async function addDetailTag() {
@@ -1545,9 +1730,9 @@ async function addDetailTag() {
   tags = normalizeTagList([...tags, tag]);
   detailTags.add(tag);
   newTagInput.value = '';
-  await saveItems();
   renderDetailTags();
   renderFilters();
+  await saveDetailNow();
 }
 
 async function deleteTag(tag) {
@@ -1658,22 +1843,23 @@ function render() {
     return `
       <article class="card">
         ${thumbnail}
-        <button class="card-head" type="button" onclick="openDetail('${item.id}')">
-          <h2 class="card-title">${esc(item.title || inferTitle(item.url))}</h2>
+        <button class="btn btn-secondary btn-icon copy-float" type="button" onclick="copyUrl('${item.id}')" title="複製連結">⧉</button>
+        <div class="card-head">
+          <h2 class="card-title">
+            <button class="title-edit-trigger" type="button" onclick="beginTitleEdit(event, '${item.id}')" title="點一下修改標題">${esc(item.title || inferTitle(item.url))}</button>
+          </h2>
           <div class="meta">
-            <span class="badge ${organized ? 'category' : 'raw'}">${esc(item.category || '未分類')}</span>
-            <span class="badge ${item.status === 'done' ? 'done' : 'todo'}">${statusText}</span>
+            <button class="badge badge-button ${organized ? 'category' : 'raw'}" type="button" onclick="beginCategoryEdit(event, '${item.id}')" title="點一下修改分類">${esc(item.category || '未分類')}</button>
+            <button class="badge badge-button ${item.status === 'done' ? 'done' : 'todo'}" type="button" onclick="toggleStatus('${item.id}')" title="點一下更新狀態">${statusText}</button>
             <span class="badge">${esc(getHost(item.url) || 'link')}</span>
           </div>
-        </button>
+        </div>
         <div class="card-body">
           ${note}
           <div class="tags">${(item.tags || []).map(tag => `<button class="tag" type="button" onclick="toggleTagFilter('${esc(tag)}')">${esc(tag)}</button>`).join('')}</div>
           <div class="card-actions">
             <a class="btn btn-primary" href="${esc(item.url)}" target="_blank" rel="noopener">開啟</a>
             <button class="btn btn-secondary" type="button" onclick="openDetail('${item.id}')">整理</button>
-            <button class="btn btn-secondary btn-icon" type="button" onclick="copyUrl('${item.id}')" title="複製">⧉</button>
-            <button class="btn btn-secondary" type="button" onclick="toggleStatus('${item.id}')">${item.status === 'done' ? '待參考' : '已拍'}</button>
           </div>
         </div>
       </article>
