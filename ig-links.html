@@ -491,15 +491,30 @@
     background: #fff;
     border: 1px dashed #d3c8bc;
     color: var(--primary);
+    min-width: 26px;
+    justify-content: center;
   }
 
   .inline-tag-editor {
+    position: relative;
     display: grid;
     gap: 9px;
-    padding: 10px;
+    padding: 10px 38px 10px 10px;
     border: 1px solid var(--line);
     border-radius: var(--radius);
     background: #fff;
+  }
+
+  .inline-tag-close {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 24px;
+    height: 24px;
+    min-height: 24px;
+    border-radius: 999px;
+    padding: 0;
+    font-size: 13px;
   }
 
   .inline-tag-options {
@@ -1834,6 +1849,11 @@ function openInlineTagEditor(id) {
   render();
 }
 
+function closeInlineTagEditor() {
+  inlineTagEditorId = '';
+  render();
+}
+
 async function toggleInlineTag(id, tag) {
   const item = items.find(entry => entry.id === id);
   if (!item) return;
@@ -2010,6 +2030,7 @@ function renderInlineTagEditor(item) {
     : '<div class="help">目前沒有標籤，先新增一個。</div>';
   return `
     <div class="inline-tag-editor">
+      <button class="btn btn-secondary btn-icon inline-tag-close" type="button" onclick="closeInlineTagEditor()" title="關閉" aria-label="關閉">x</button>
       <div class="inline-tag-options">${options}</div>
       <div class="inline-tag-input">
         <input class="input" type="text" placeholder="新增標籤" data-inline-tag-input="${esc(item.id)}" onkeydown="handleInlineTagInput(event, '${item.id}')">
@@ -2108,11 +2129,11 @@ function render() {
           ${note}
           <div class="tags">
             ${(item.tags || []).map(tag => `<button class="tag" type="button" onclick="toggleTagFilter(${jsArg(tag)})">${esc(tag)}</button>`).join('')}
-            <button class="tag tag-add" type="button" onclick="openInlineTagEditor('${item.id}')">+ 標籤</button>
+            <button class="tag tag-add" type="button" onclick="openInlineTagEditor('${item.id}')" title="新增標籤" aria-label="新增標籤">+</button>
           </div>
           ${renderInlineTagEditor(item)}
           <div class="card-actions">
-            <a class="btn btn-primary" href="${esc(item.url)}" target="_blank" rel="noopener">開啟</a>
+            <a class="btn btn-primary" href="${esc(item.url)}" target="_blank" rel="noopener" title="開啟" aria-label="開啟">▶</a>
             <button class="btn btn-secondary btn-icon organize-btn" type="button" onclick="openDetail('${item.id}')" title="整理" aria-label="整理">⚙</button>
           </div>
         </div>
