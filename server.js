@@ -33,6 +33,7 @@ function normalizeItem(item) {
   const now = Date.now();
   const url = String(item && item.url || '').trim();
   const note = String(item && item.note || '').trim();
+  const outline = String(item && item.outline || '').trim();
   const kind = String(item && item.kind || '').trim() || (url ? 'link' : 'script');
   if (!url && !note) return null;
   return {
@@ -45,6 +46,7 @@ function normalizeItem(item) {
     tags: normalizeTags(item.tags),
     props: normalizeProps(item.props),
     note,
+    outline,
     thumbnailUrl: String(item.thumbnailUrl || '').trim(),
     createdAt: Number(item.createdAt || now),
     updatedAt: Number(item.updatedAt || now)
