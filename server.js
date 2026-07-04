@@ -20,6 +20,11 @@ function normalizeTags(tags) {
   return [...new Set(tags.map(tag => String(tag || '').trim()).filter(Boolean))];
 }
 
+function normalizeProps(props) {
+  if (!Array.isArray(props)) return [];
+  return [...new Set(props.map(prop => String(prop || '').trim()).filter(Boolean))];
+}
+
 function normalizeStatus(status) {
   return status === 'done' ? 'done' : 'todo';
 }
@@ -35,6 +40,7 @@ function normalizeItem(item) {
     category: String(item.category || '未分類').trim() || '未分類',
     status: normalizeStatus(item.status),
     tags: normalizeTags(item.tags),
+    props: normalizeProps(item.props),
     note: String(item.note || '').trim(),
     thumbnailUrl: String(item.thumbnailUrl || '').trim(),
     createdAt: Number(item.createdAt || now),

@@ -541,6 +541,62 @@
     font-size: 13px;
   }
 
+  .props {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .prop-chip {
+    color: #564b42;
+    background: #f0e4d7;
+    border-radius: 999px;
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+
+  .prop-add {
+    min-width: 26px;
+    justify-content: center;
+    color: #7a4a12;
+    background: #fff;
+    border: 1px dashed #d8c2a4;
+  }
+
+  .inline-prop-editor {
+    position: relative;
+    display: grid;
+    gap: 9px;
+    padding: 10px 38px 10px 10px;
+    border: 1px solid #e1c9a5;
+    border-radius: var(--radius);
+    background: #fffaf3;
+  }
+
+  .inline-prop-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+  }
+
+  .inline-prop-input {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+  }
+
+  .inline-prop-input .input {
+    min-height: 36px;
+    padding: 7px 10px;
+    font-size: 14px;
+  }
+
+  .inline-prop-input .btn {
+    min-height: 36px;
+    padding: 7px 11px;
+    font-size: 13px;
+  }
+
   .card-actions {
     display: grid;
     grid-template-columns: 1fr 42px;
@@ -1141,6 +1197,7 @@ let hideDone = false;
 let filtersOpen = false;
 let managerMode = 'category';
 let inlineTagEditorId = '';
+let inlinePropEditorId = '';
 let saveTimer = null;
 let detailSaveTimer = null;
 let isServerReady = false;
@@ -1181,7 +1238,8 @@ function getLocalState() {
 }
 
 function normalizeState(state) {
-  const nextItems = Array.isArray(state && state.items) ? state.items : [];
+  const nextItems = (Array.isArray(state && state.items) ? state.items : [])
+    .map(item => ({ ...item, props: normalizePropList(item && item.props) }));
   const nextTags = normalizeTagList([
     ...(Array.isArray(state && state.tags) ? state.tags : []),
     ...nextItems.flatMap(item => item.tags || [])
@@ -1244,6 +1302,12 @@ function normalizeCategoryList(list) {
 function normalizeTagList(list) {
   return [...new Set((Array.isArray(list) ? list : [])
     .map(tag => String(tag || '').trim())
+    .filter(Boolean))];
+}
+
+function normalizePropList(list) {
+  return [...new Set((Array.isArray(list) ? list : [])
+    .map(prop => String(prop || '').trim())
     .filter(Boolean))];
 }
 
@@ -1376,6 +1440,7 @@ form.addEventListener('submit', async event => {
     category: '未分類',
     status: 'todo',
     tags: isInstagramProfileUrl(url) ? ['寶藏帳號'] : [],
+    props: [],
     note: '',
     thumbnailUrl: preview.thumbnailUrl || '',
     createdAt: Date.now(),
@@ -1414,6 +1479,7 @@ async function saveDetailNow() {
     category: categoryInput.value,
     status: statusInput.value,
     tags: [...detailTags],
+    props: normalizePropList(existing.props),
     note: noteInput.value.trim(),
     thumbnailUrl: urlChanged ? (preview.thumbnailUrl || '') : (existing.thumbnailUrl || ''),
     updatedAt: Date.now()
@@ -1510,6 +1576,11 @@ cards.addEventListener('click', event => {
     event.preventDefault();
     toggleInlineTag(option.dataset.inlineTagId, option.dataset.inlineTagValue);
   }
+  const propRemove = event.target.closest('[data-remove-prop]');
+  if (propRemove) {
+    event.preventDefault();
+    removeInlineProp(propRemove.dataset.propId, propRemove.dataset.propValue);
+  }
 });
 categoryList.addEventListener('click', event => {
   const categoryButton = event.target.closest('[data-delete-category]');
@@ -1571,6 +1642,7 @@ document.getElementById('importFile').addEventListener('change', async event => 
         category: item.category || '未分類',
         status: item.status || 'todo',
         tags: Array.isArray(item.tags) ? item.tags : [],
+        props: normalizePropList(item.props),
         note: item.note || '',
         thumbnailUrl: item.thumbnailUrl || '',
         createdAt: Number(item.createdAt || Date.now()),
@@ -1854,6 +1926,51 @@ function closeInlineTagEditor() {
   render();
 }
 
+function hasPropTag(item) {
+  return (item.tags || []).includes('道具');
+}
+
+function openInlinePropEditor(id) {
+  inlinePropEditorId = inlinePropEditorId === id ? '' : id;
+  render();
+}
+
+function closeInlinePropEditor() {
+  inlinePropEditorId = '';
+  render();
+}
+
+async function addInlineProp(id) {
+  const input = document.querySelector(`[data-inline-prop-input="${id}"]`);
+  const prop = input ? input.value.trim() : '';
+  if (!prop) return;
+  const item = items.find(entry => entry.id === id);
+  if (!item) return;
+  items = items.map(entry => entry.id === id
+    ? { ...entry, props: normalizePropList([...(entry.props || []), prop]), updatedAt: Date.now() }
+    : entry);
+  inlinePropEditorId = id;
+  await saveItems();
+  render();
+}
+
+async function removeInlineProp(id, prop) {
+  const item = items.find(entry => entry.id === id);
+  if (!item) return;
+  items = items.map(entry => entry.id === id
+    ? { ...entry, props: normalizePropList(entry.props || []).filter(itemProp => itemProp !== prop), updatedAt: Date.now() }
+    : entry);
+  inlinePropEditorId = id;
+  await saveItems();
+  render();
+}
+
+function handleInlinePropInput(event, id) {
+  if (event.key !== 'Enter') return;
+  event.preventDefault();
+  addInlineProp(id);
+}
+
 async function toggleInlineTag(id, tag) {
   const item = items.find(entry => entry.id === id);
   if (!item) return;
@@ -2040,6 +2157,40 @@ function renderInlineTagEditor(item) {
   `;
 }
 
+function renderPropSection(item) {
+  const props = normalizePropList(item.props);
+  if (!hasPropTag(item) && !props.length) return '';
+  return `
+    <div class="props">
+      ${props.map(prop => `<span class="prop-chip">${esc(prop)}</span>`).join('')}
+      ${hasPropTag(item) ? `<button class="tag prop-add" type="button" onclick="openInlinePropEditor('${item.id}')" title="新增道具" aria-label="新增道具">+</button>` : ''}
+    </div>
+  `;
+}
+
+function renderInlinePropEditor(item) {
+  if (inlinePropEditorId !== item.id) return '';
+  const props = normalizePropList(item.props);
+  const propList = props.length
+    ? props.map(prop => `
+      <button class="tag-choice active" type="button" data-remove-prop data-prop-id="${esc(item.id)}" data-prop-value="${esc(prop)}" title="移除道具">
+        <span>${esc(prop)}</span>
+        <span class="tag-remove">x</span>
+      </button>
+    `).join('')
+    : '<div class="help">先新增要準備的道具。</div>';
+  return `
+    <div class="inline-prop-editor">
+      <button class="btn btn-secondary btn-icon inline-tag-close" type="button" onclick="closeInlinePropEditor()" title="關閉" aria-label="關閉">x</button>
+      <div class="inline-prop-list">${propList}</div>
+      <div class="inline-prop-input">
+        <input class="input" type="text" placeholder="要準備什麼道具" data-inline-prop-input="${esc(item.id)}" onkeydown="handleInlinePropInput(event, '${item.id}')">
+        <button class="btn btn-primary" type="button" onclick="addInlineProp('${item.id}')">新增</button>
+      </div>
+    </div>
+  `;
+}
+
 function renderFilters() {
   categories = getAllCategories();
   const filterCategories = [...categories].sort();
@@ -2132,6 +2283,8 @@ function render() {
             <button class="tag tag-add" type="button" onclick="openInlineTagEditor('${item.id}')" title="新增標籤" aria-label="新增標籤">+</button>
           </div>
           ${renderInlineTagEditor(item)}
+          ${renderPropSection(item)}
+          ${renderInlinePropEditor(item)}
           <div class="card-actions">
             <a class="btn btn-primary" href="${esc(item.url)}" target="_blank" rel="noopener" title="開啟" aria-label="開啟">▶</a>
             <button class="btn btn-secondary btn-icon organize-btn" type="button" onclick="openDetail('${item.id}')" title="整理" aria-label="整理">⚙</button>
