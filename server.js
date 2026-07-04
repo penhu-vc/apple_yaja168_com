@@ -32,16 +32,19 @@ function normalizeStatus(status) {
 function normalizeItem(item) {
   const now = Date.now();
   const url = String(item && item.url || '').trim();
-  if (!url) return null;
+  const note = String(item && item.note || '').trim();
+  const kind = String(item && item.kind || '').trim() || (url ? 'link' : 'script');
+  if (!url && !note) return null;
   return {
     id: String(item.id || `${now.toString(36)}-${Math.random().toString(36).slice(2, 8)}`),
     url,
+    kind,
     title: String(item.title || '').trim(),
     category: String(item.category || '未分類').trim() || '未分類',
     status: normalizeStatus(item.status),
     tags: normalizeTags(item.tags),
     props: normalizeProps(item.props),
-    note: String(item.note || '').trim(),
+    note,
     thumbnailUrl: String(item.thumbnailUrl || '').trim(),
     createdAt: Number(item.createdAt || now),
     updatedAt: Number(item.updatedAt || now)

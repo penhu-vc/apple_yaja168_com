@@ -678,6 +678,12 @@
     font-size: 18px;
   }
 
+  .script-action {
+    color: var(--muted);
+    background: #f4f1ec;
+    cursor: default;
+  }
+
   .empty {
     min-height: 360px;
     border: 1px dashed #cfc8bd;
@@ -1393,10 +1399,16 @@ function getHost(url) {
 }
 
 function getSourceLabel(url) {
+  if (!url) return '文';
   const host = getHost(url);
   if (/(^|\.)instagram\.com$/i.test(host)) return 'IG';
   if (/(^|\.)facebook\.com$/i.test(host) || /(^|\.)fb\.com$/i.test(host)) return 'FB';
   return host || 'link';
+}
+
+function looksLikeUrl(value) {
+  const raw = String(value || '').trim();
+  return /^https?:\/\//i.test(raw) || /^www\./i.test(raw) || /^[^\s]+\.[^\s]+$/.test(raw);
 }
 
 function normalizeUrl(value) {
@@ -1430,6 +1442,11 @@ function inferTitle(url) {
   }
 }
 
+function inferTextTitle(text) {
+  const line = String(text || '').split(/\n/).map(item => item.trim()).find(Boolean) || '文字腳本';
+  return line.length > 24 ? `${line.slice(0, 24)}...` : line;
+}
+
 function isInstagramProfileUrl(url) {
   try {
     const parsed = new URL(url);
@@ -1461,11 +1478,39 @@ function updateResetButton() {
 
 form.addEventListener('submit', async event => {
   event.preventDefault();
-  const url = normalizeUrl(urlInput.value);
-  if (!url) {
-    showToast('請貼上連結');
+  const rawInput = urlInput.value.trim();
+  if (!rawInput) {
+    showToast('請貼上連結或輸入文字腳本');
     return;
   }
+  if (!looksLikeUrl(rawInput)) {
+    const item = {
+      id: uid(),
+      url: '',
+      kind: 'script',
+      title: inferTextTitle(rawInput),
+      category: '腳本',
+      status: 'todo',
+      tags: ['文字腳本'],
+      props: [],
+      note: rawInput,
+      thumbnailUrl: '',
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    };
+    items.unshift(item);
+    categories = normalizeCategoryList([...categories, '腳本']);
+    tags = normalizeTagList([...tags, '文字腳本']);
+    await saveItems();
+    form.reset();
+    updateResetButton();
+    render();
+    showToast('已保存文字腳本');
+    urlInput.focus();
+    return;
+  }
+
+  const url = normalizeUrl(rawInput);
   if (!isValidUrl(url)) {
     showToast('連結格式不對');
     return;
@@ -1483,6 +1528,7 @@ form.addEventListener('submit', async event => {
   const item = {
     id: uid(),
     url,
+    kind: 'link',
     title: preview.title || inferTitle(url),
     category: '未分類',
     status: 'todo',
@@ -1511,24 +1557,27 @@ async function saveDetailNow() {
   const id = detailId.value;
   const existing = items.find(item => item.id === id);
   if (!existing) return;
-  const normalizedDetailUrl = normalizeUrl(detailUrl.value);
-  if (!isValidUrl(normalizedDetailUrl)) {
+  const isScript = existing.kind === 'script' || (!existing.url && existing.note);
+  const rawDetailUrl = detailUrl.value.trim();
+  const normalizedDetailUrl = rawDetailUrl ? normalizeUrl(rawDetailUrl) : '';
+  if (!isScript && !isValidUrl(normalizedDetailUrl)) {
     showToast('連結格式不對');
     return;
   }
 
   const urlChanged = normalizedDetailUrl !== existing.url;
-  const preview = urlChanged ? await fetchPreview(normalizedDetailUrl) : {};
+  const preview = normalizedDetailUrl && urlChanged ? await fetchPreview(normalizedDetailUrl) : {};
   const updated = {
     ...existing,
     url: normalizedDetailUrl,
-    title: titleInput.value.trim() || preview.title || inferTitle(normalizedDetailUrl),
+    kind: normalizedDetailUrl ? 'link' : 'script',
+    title: titleInput.value.trim() || preview.title || (normalizedDetailUrl ? inferTitle(normalizedDetailUrl) : inferTextTitle(noteInput.value)),
     category: categoryInput.value,
     status: statusInput.value,
     tags: [...detailTags],
     props: normalizePropList(existing.props),
     note: noteInput.value.trim(),
-    thumbnailUrl: urlChanged ? (preview.thumbnailUrl || '') : (existing.thumbnailUrl || ''),
+    thumbnailUrl: normalizedDetailUrl && urlChanged ? (preview.thumbnailUrl || '') : (existing.thumbnailUrl || ''),
     updatedAt: Date.now()
   };
   items = items.map(item => item.id === id ? updated : item);
@@ -1681,11 +1730,12 @@ document.getElementById('importFile').addEventListener('change', async event => 
     const imported = JSON.parse(await file.text());
     if (!Array.isArray(imported)) throw new Error('invalid');
     const cleaned = imported
-      .filter(item => item && item.url)
+      .filter(item => item && (item.url || item.note))
       .map(item => ({
         id: item.id || uid(),
-        url: item.url,
-        title: item.title || inferTitle(item.url),
+        url: item.url || '',
+        kind: item.kind || (item.url ? 'link' : 'script'),
+        title: item.title || (item.url ? inferTitle(item.url) : inferTextTitle(item.note)),
         category: item.category || '未分類',
         status: item.status || 'todo',
         tags: Array.isArray(item.tags) ? item.tags : [],
@@ -1730,7 +1780,8 @@ function openDetail(id) {
   renderDetailTags();
   newTagInput.value = '';
   noteInput.value = item.note || '';
-  modalOpenLink.href = item.url;
+  modalOpenLink.href = item.url || '#';
+  modalOpenLink.classList.toggle('hidden', !item.url);
   detailModal.classList.add('open');
   setTimeout(() => titleInput.focus(), 80);
 }
@@ -2314,6 +2365,9 @@ function render() {
     const thumbnail = item.thumbnailUrl
       ? `<div class="thumb"><img src="${esc(item.thumbnailUrl)}" alt="" loading="lazy" referrerpolicy="no-referrer"></div>`
       : '';
+    const openAction = item.url
+      ? `<a class="btn btn-primary" href="${esc(item.url)}" target="_blank" rel="noopener" title="開啟" aria-label="開啟">▶</a>`
+      : '<span class="btn btn-secondary script-action" title="文字腳本" aria-label="文字腳本">文</span>';
     return `
       <article class="card">
         ${thumbnail}
@@ -2338,7 +2392,7 @@ function render() {
           ${renderPropSection(item)}
           ${renderInlinePropEditor(item)}
           <div class="card-actions">
-            <a class="btn btn-primary" href="${esc(item.url)}" target="_blank" rel="noopener" title="開啟" aria-label="開啟">▶</a>
+            ${openAction}
             <button class="btn btn-secondary btn-icon organize-btn" type="button" onclick="openDetail('${item.id}')" title="整理" aria-label="整理">⚙</button>
           </div>
         </div>
