@@ -472,8 +472,8 @@
   .status-dot.done { background: #d6453d; }
 
   .category-picker {
-    position: absolute;
-    z-index: 8;
+    position: fixed;
+    z-index: 80;
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
@@ -1907,16 +1907,15 @@ function beginCategoryEdit(event, id) {
   event.stopPropagation();
   const item = items.find(entry => entry.id === id);
   const target = event.currentTarget;
-  const card = target.closest('.card');
-  if (!item || !card) return;
+  if (!item) return;
 
-  card.querySelector('.category-picker')?.remove();
+  document.querySelectorAll('.category-picker').forEach(picker => picker.remove());
   const picker = document.createElement('div');
   picker.className = 'category-picker';
-  const cardRect = card.getBoundingClientRect();
   const targetRect = target.getBoundingClientRect();
-  picker.style.left = `${Math.max(10, Math.round(targetRect.left - cardRect.left))}px`;
-  picker.style.top = `${Math.round(targetRect.bottom - cardRect.top + 6)}px`;
+  const left = Math.max(10, Math.min(Math.round(targetRect.left), window.innerWidth - 280));
+  picker.style.left = `${left}px`;
+  picker.style.top = `${Math.round(targetRect.bottom + 6)}px`;
 
   getAllCategories().forEach(category => {
     const option = document.createElement('button');
@@ -1937,7 +1936,7 @@ function beginCategoryEdit(event, id) {
     });
     picker.append(option);
   });
-  card.append(picker);
+  document.body.append(picker);
 
   const close = closeEvent => {
     if (picker.contains(closeEvent.target) || target.contains(closeEvent.target)) return;
