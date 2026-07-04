@@ -2298,7 +2298,14 @@ function renderFilters() {
   categories = getAllCategories();
   const filterCategories = [...categories].sort();
   tags = getAllTags();
-  const filterTags = [...tags].sort();
+  const tagCounts = new Map(tags.map(tag => [
+    tag,
+    items.filter(item => (item.tags || []).includes(tag)).length
+  ]));
+  const filterTags = [...tags].sort((a, b) => {
+    const countDiff = (tagCounts.get(b) || 0) - (tagCounts.get(a) || 0);
+    return countDiff || a.localeCompare(b, 'zh-Hant');
+  });
   selectedCategories = new Set([...selectedCategories].filter(category => filterCategories.includes(category)));
   selectedTags = new Set([...selectedTags].filter(tag => filterTags.includes(tag)));
   categoryFilterLabel.textContent = selectedCategories.size
@@ -2323,7 +2330,7 @@ function renderFilters() {
         <span>全部標籤</span><span class="filter-check">${selectedTags.size ? '' : '✓'}</span>
       </button>
       ${filterTags.map(tag => {
-        const count = items.filter(item => (item.tags || []).includes(tag)).length;
+        const count = tagCounts.get(tag) || 0;
         return `
           <button class="filter-option ${selectedTags.has(tag) ? 'active' : ''}" type="button" data-filter-tag="${esc(tag)}">
             <span>${esc(tag)} ${count}</span><span class="filter-check">${selectedTags.has(tag) ? '✓' : ''}</span>
