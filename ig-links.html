@@ -485,6 +485,45 @@
     cursor: pointer;
   }
 
+  .tag-add {
+    background: #fff;
+    border: 1px dashed #d3c8bc;
+    color: var(--primary);
+  }
+
+  .inline-tag-editor {
+    display: grid;
+    gap: 9px;
+    padding: 10px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: #fff;
+  }
+
+  .inline-tag-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+  }
+
+  .inline-tag-input {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+  }
+
+  .inline-tag-input .input {
+    min-height: 36px;
+    padding: 7px 10px;
+    font-size: 14px;
+  }
+
+  .inline-tag-input .btn {
+    min-height: 36px;
+    padding: 7px 11px;
+    font-size: 13px;
+  }
+
   .card-actions {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -1077,6 +1116,7 @@ let detailTags = new Set();
 let hideDone = false;
 let filtersOpen = false;
 let managerMode = 'category';
+let inlineTagEditorId = '';
 let saveTimer = null;
 let detailSaveTimer = null;
 let isServerReady = false;
@@ -1770,6 +1810,50 @@ function toggleTagFilter(tag) {
   render();
 }
 
+function openInlineTagEditor(id) {
+  inlineTagEditorId = inlineTagEditorId === id ? '' : id;
+  render();
+}
+
+async function toggleInlineTag(id, tag) {
+  const item = items.find(entry => entry.id === id);
+  if (!item) return;
+  const currentTags = new Set(item.tags || []);
+  if (currentTags.has(tag)) {
+    currentTags.delete(tag);
+  } else {
+    currentTags.add(tag);
+  }
+  items = items.map(entry => entry.id === id
+    ? { ...entry, tags: normalizeTagList([...currentTags]), updatedAt: Date.now() }
+    : entry);
+  tags = normalizeTagList([...tags, tag]);
+  inlineTagEditorId = id;
+  await saveItems();
+  render();
+}
+
+async function addInlineTag(id) {
+  const input = document.querySelector(`[data-inline-tag-input="${id}"]`);
+  const tag = input ? input.value.trim() : '';
+  if (!tag) return;
+  const item = items.find(entry => entry.id === id);
+  if (!item) return;
+  tags = normalizeTagList([...tags, tag]);
+  items = items.map(entry => entry.id === id
+    ? { ...entry, tags: normalizeTagList([...(entry.tags || []), tag]), updatedAt: Date.now() }
+    : entry);
+  inlineTagEditorId = id;
+  await saveItems();
+  render();
+}
+
+function handleInlineTagInput(event, id) {
+  if (event.key !== 'Enter') return;
+  event.preventDefault();
+  addInlineTag(id);
+}
+
 function getFilteredItems() {
   const q = searchInput.value.trim().toLowerCase();
   return items.filter(item => {
@@ -1894,6 +1978,28 @@ function renderTagManager() {
   }).join('');
 }
 
+function renderInlineTagEditor(item) {
+  if (inlineTagEditorId !== item.id) return '';
+  const itemTags = new Set(item.tags || []);
+  const list = getAllTags();
+  const options = list.length
+    ? list.map(tag => `
+      <button class="tag-choice ${itemTags.has(tag) ? 'active' : ''}" type="button" onclick="toggleInlineTag('${item.id}', ${jsArg(tag)})">
+        <span>${esc(tag)}</span>
+      </button>
+    `).join('')
+    : '<div class="help">目前沒有標籤，先新增一個。</div>';
+  return `
+    <div class="inline-tag-editor">
+      <div class="inline-tag-options">${options}</div>
+      <div class="inline-tag-input">
+        <input class="input" type="text" placeholder="新增標籤" data-inline-tag-input="${esc(item.id)}" onkeydown="handleInlineTagInput(event, '${item.id}')">
+        <button class="btn btn-primary" type="button" onclick="addInlineTag('${item.id}')">新增</button>
+      </div>
+    </div>
+  `;
+}
+
 function renderFilters() {
   categories = getAllCategories();
   const filterCategories = [...categories].sort();
@@ -1981,7 +2087,11 @@ function render() {
         </div>
         <div class="card-body">
           ${note}
-          <div class="tags">${(item.tags || []).map(tag => `<button class="tag" type="button" onclick="toggleTagFilter('${esc(tag)}')">${esc(tag)}</button>`).join('')}</div>
+          <div class="tags">
+            ${(item.tags || []).map(tag => `<button class="tag" type="button" onclick="toggleTagFilter(${jsArg(tag)})">${esc(tag)}</button>`).join('')}
+            <button class="tag tag-add" type="button" onclick="openInlineTagEditor('${item.id}')">+ 標籤</button>
+          </div>
+          ${renderInlineTagEditor(item)}
           <div class="card-actions">
             <a class="btn btn-primary" href="${esc(item.url)}" target="_blank" rel="noopener">開啟</a>
             <button class="btn btn-secondary" type="button" onclick="openDetail('${item.id}')">整理</button>
