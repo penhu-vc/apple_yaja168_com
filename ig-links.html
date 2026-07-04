@@ -233,15 +233,62 @@
   }
 
   #hideDoneBtn {
-    width: auto;
-    min-width: 92px;
-    padding: 0 12px;
+    width: 58px;
+    min-width: 58px;
+    padding: 0;
+    gap: 7px;
   }
 
   #hideDoneBtn.active {
-    background: var(--primary);
-    border-color: var(--primary);
-    color: #fff;
+    background: rgba(255, 254, 249, .72);
+    border-color: var(--line);
+  }
+
+  .hide-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 999px;
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 1px rgba(42, 38, 32, .12);
+    transition: opacity .18s ease, transform .18s ease;
+  }
+
+  .hide-dot.todo { background: #2f9d6a; }
+  .hide-dot.done { background: #c1443b; }
+
+  #hideDoneBtn.active .hide-dot.done {
+    opacity: .28;
+    transform: scale(.72);
+  }
+
+  .prop-summary {
+    grid-column: 1 / -1;
+    display: none;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: rgba(255, 254, 249, .58);
+  }
+
+  .prop-summary.show {
+    display: flex;
+  }
+
+  .prop-summary-title {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 26px;
+    white-space: nowrap;
+  }
+
+  .prop-summary-list {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 6px;
   }
 
   .side-note {
@@ -262,7 +309,7 @@
 
   .topbar {
     display: grid;
-    grid-template-columns: minmax(220px, 1fr) minmax(160px, 210px) minmax(160px, 210px) 150px auto;
+    grid-template-columns: minmax(220px, 1fr) minmax(160px, 210px) minmax(160px, 210px) auto;
     gap: 10px;
     align-items: center;
     margin-bottom: 24px;
@@ -1062,9 +1109,13 @@
     .toolbar-actions::-webkit-scrollbar {
       display: none;
     }
-    #hideDoneBtn,
     #manageCategoriesBtn {
       min-width: max-content;
+      height: 44px;
+    }
+    #hideDoneBtn {
+      width: 58px;
+      min-width: 58px;
       height: 44px;
     }
     .multi-filter.open .filter-menu {
@@ -1189,18 +1240,16 @@
         </button>
         <div class="filter-menu" id="tagFilterOptions"></div>
       </div>
-      <select class="select" id="statusFilter">
-        <option value="">全部狀態</option>
-        <option value="todo">待參考</option>
-        <option value="done">已拍過</option>
-      </select>
       <div class="btn-row toolbar-actions">
-        <button class="btn btn-secondary btn-icon" type="button" id="hideDoneBtn" title="隱藏已拍攝的連結">隱藏已拍</button>
+        <button class="btn btn-secondary btn-icon" type="button" id="hideDoneBtn" title="隱藏已拍攝的連結" aria-label="隱藏已拍攝的連結">
+          <span class="hide-dot todo" aria-hidden="true"></span>
+          <span class="hide-dot done" aria-hidden="true"></span>
+        </button>
         <button class="btn btn-secondary btn-icon" type="button" id="manageCategoriesBtn" title="編輯分類">分類</button>
-        <button class="btn btn-secondary btn-icon" type="button" id="randomBtn" title="隨機打開一個待參考連結">?</button>
-        <button class="btn btn-secondary btn-icon" type="button" id="exportBtn" title="匯出備份">↓</button>
-        <button class="btn btn-secondary btn-icon" type="button" id="importBtn" title="匯入備份">↑</button>
-        <input class="hidden" id="importFile" type="file" accept="application/json">
+      </div>
+      <div class="prop-summary" id="propSummary">
+        <div class="prop-summary-title">所需道具</div>
+        <div class="prop-summary-list" id="propSummaryList"></div>
       </div>
     </div>
 
@@ -1329,7 +1378,8 @@ const tagFilter = document.getElementById('tagFilter');
 const tagFilterButton = document.getElementById('tagFilterButton');
 const tagFilterLabel = document.getElementById('tagFilterLabel');
 const tagFilterOptions = document.getElementById('tagFilterOptions');
-const statusFilter = document.getElementById('statusFilter');
+const propSummary = document.getElementById('propSummary');
+const propSummaryList = document.getElementById('propSummaryList');
 const cards = document.getElementById('cards');
 const totalCount = document.getElementById('totalCount');
 const toastEl = document.getElementById('toast');
@@ -1714,7 +1764,6 @@ document.getElementById('resetBtn').addEventListener('click', () => {
 });
 urlInput.addEventListener('input', updateResetButton);
 searchInput.addEventListener('input', render);
-statusFilter.addEventListener('change', render);
 filterToggle.addEventListener('click', () => {
   filtersOpen = !filtersOpen;
   filterPanel.classList.toggle('collapsed', !filtersOpen);
@@ -1813,66 +1862,6 @@ document.addEventListener('click', event => {
     tagFilter.classList.remove('open');
     tagFilterButton.setAttribute('aria-expanded', 'false');
   }
-});
-
-document.getElementById('randomBtn').addEventListener('click', () => {
-  const pool = items.filter(item => item.status !== 'done');
-  if (!pool.length) {
-    showToast('目前沒有待參考連結');
-    return;
-  }
-  const item = pool[Math.floor(Math.random() * pool.length)];
-  window.open(item.url, '_blank', 'noopener');
-});
-
-document.getElementById('exportBtn').addEventListener('click', () => {
-  const blob = new Blob([JSON.stringify(items, null, 2)], { type: 'application/json' });
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
-  link.download = `ig-links-${new Date().toISOString().slice(0, 10)}.json`;
-  link.click();
-  URL.revokeObjectURL(link.href);
-  showToast('已匯出備份');
-});
-
-document.getElementById('importBtn').addEventListener('click', () => {
-  document.getElementById('importFile').click();
-});
-
-document.getElementById('importFile').addEventListener('change', async event => {
-  const file = event.target.files[0];
-  if (!file) return;
-  try {
-    const imported = JSON.parse(await file.text());
-    if (!Array.isArray(imported)) throw new Error('invalid');
-    const cleaned = imported
-      .filter(item => item && (item.url || item.note))
-      .map(item => ({
-        id: item.id || uid(),
-        url: item.url || '',
-        kind: item.kind || (item.url ? 'link' : 'script'),
-        title: item.title || (item.url ? inferTitle(item.url) : inferTextTitle(item.note)),
-        category: item.category || '未分類',
-        status: item.status || 'todo',
-        tags: Array.isArray(item.tags) ? item.tags : [],
-        props: normalizePropList(item.props),
-        note: item.note || '',
-        outline: item.outline || inferOutline(item.note),
-        thumbnailUrl: item.thumbnailUrl || '',
-        createdAt: Number(item.createdAt || Date.now()),
-        updatedAt: Number(item.updatedAt || Date.now())
-      }));
-    items = cleaned.concat(items);
-    categories = normalizeCategoryList([...categories, ...cleaned.map(item => item.category)]);
-    tags = normalizeTagList([...tags, ...cleaned.flatMap(item => item.tags || [])]);
-    await saveCategories();
-    await saveItems();
-    render();
-    showToast(`已匯入 ${cleaned.length} 筆`);
-  } catch {
-    showToast('匯入失敗，檔案格式不正確');
-  }
-  event.target.value = '';
 });
 
 modalDeleteBtn.addEventListener('click', () => {
@@ -2245,9 +2234,22 @@ function getFilteredItems() {
     return (!q || blob.includes(q))
       && (!selectedCategories.size || selectedCategories.has(item.category || '未分類'))
       && (!selectedTags.size || (item.tags || []).some(tag => selectedTags.has(tag)))
-      && (!hideDone || item.status !== 'done')
-      && (!statusFilter.value || item.status === statusFilter.value);
+      && (!hideDone || item.status !== 'done');
   });
+}
+
+function renderPropSummary(list) {
+  const propCounts = new Map();
+  list.forEach(item => {
+    normalizePropList(item.props).forEach(prop => {
+      propCounts.set(prop, (propCounts.get(prop) || 0) + 1);
+    });
+  });
+  const props = [...propCounts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'zh-Hant'));
+  propSummary.classList.toggle('show', Boolean(props.length));
+  propSummaryList.innerHTML = props.map(([prop, count]) => `
+    <span class="prop-chip">${esc(prop)}${count > 1 ? ` ${count}` : ''}</span>
+  `).join('');
 }
 
 function getAllCategories() {
@@ -2476,8 +2478,10 @@ function render() {
   renderFilters();
   totalCount.textContent = items.length;
   hideDoneBtn.classList.toggle('active', hideDone);
-  hideDoneBtn.textContent = hideDone ? '顯示已拍' : '隱藏已拍';
+  hideDoneBtn.title = hideDone ? '顯示已拍攝的連結' : '隱藏已拍攝的連結';
+  hideDoneBtn.setAttribute('aria-label', hideDoneBtn.title);
   const list = getFilteredItems();
+  renderPropSummary(list);
   if (!list.length) {
     cards.innerHTML = `
       <div class="empty" style="grid-column:1/-1">
