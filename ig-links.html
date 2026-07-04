@@ -2296,7 +2296,14 @@ function renderInlinePropEditor(item) {
 
 function renderFilters() {
   categories = getAllCategories();
-  const filterCategories = [...categories].sort();
+  const categoryCounts = new Map(categories.map(category => [
+    category,
+    items.filter(item => (item.category || '未分類') === category).length
+  ]));
+  const filterCategories = [...categories].sort((a, b) => {
+    const countDiff = (categoryCounts.get(b) || 0) - (categoryCounts.get(a) || 0);
+    return countDiff || a.localeCompare(b, 'zh-Hant');
+  });
   tags = getAllTags();
   const tagCounts = new Map(tags.map(tag => [
     tag,
