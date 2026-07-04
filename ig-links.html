@@ -339,7 +339,7 @@
   .board {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap: 14px;
+    gap: 12px;
   }
 
   .card {
@@ -347,10 +347,10 @@
     background: var(--panel);
     border: 1px solid var(--line);
     border-radius: var(--radius);
-    box-shadow: var(--shadow);
+    box-shadow: 0 10px 22px rgba(41, 37, 31, .06);
     overflow: hidden;
     display: grid;
-    min-height: 224px;
+    min-height: 168px;
   }
 
   .thumb {
@@ -369,20 +369,19 @@
   }
 
   .card-head {
-    min-height: 86px;
-    padding: 15px;
-    background: linear-gradient(135deg, #fffdf9 0%, #eef5f1 100%);
-    border-bottom: 1px solid var(--line);
+    min-height: 0;
+    padding: 16px 54px 8px 16px;
+    background: linear-gradient(135deg, #fffdf9 0%, #f4faf7 100%);
     display: grid;
-    gap: 10px;
+    gap: 9px;
     text-align: left;
   }
 
   .card-title {
     margin: 0;
-    font-size: 16px;
-    line-height: 1.35;
-    font-weight: 760;
+    font-size: 18px;
+    line-height: 1.28;
+    font-weight: 820;
     overflow-wrap: anywhere;
   }
 
@@ -439,15 +438,18 @@
   }
 
   .badge-select {
+    height: 24px;
     min-height: 24px;
     border: 1px solid #cfe1da;
     border-radius: 999px;
-    padding: 3px 8px;
+    padding: 2px 8px;
     background: #fff;
     color: var(--primary);
     font-size: 12px;
     font-weight: 650;
+    line-height: 1;
     outline: none;
+    vertical-align: top;
   }
 
   .badge.category { background: #e5f2ed; color: var(--primary); }
@@ -456,9 +458,9 @@
   .badge.raw { background: #f2eeea; color: #75685d; }
 
   .card-body {
-    padding: 15px;
+    padding: 0 16px 14px;
     display: grid;
-    gap: 12px;
+    gap: 10px;
   }
 
   .note {
@@ -526,10 +528,10 @@
 
   .card-actions {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 42px;
     gap: 8px;
     align-items: center;
-    margin-top: auto;
+    margin-top: 2px;
   }
 
   .card-actions .btn {
@@ -540,15 +542,22 @@
 
   .copy-float {
     position: absolute;
-    top: 10px;
-    right: 10px;
+    top: 12px;
+    right: 12px;
     z-index: 2;
-    width: 34px;
-    height: 34px;
-    min-height: 34px;
+    width: 32px;
+    height: 32px;
+    min-height: 32px;
     padding: 0;
     background: rgba(255, 255, 255, .86);
     backdrop-filter: blur(8px);
+  }
+
+  .organize-btn {
+    width: 42px;
+    min-width: 42px;
+    padding: 0;
+    font-size: 18px;
   }
 
   .empty {
@@ -864,20 +873,20 @@
     }
     .card-head {
       min-height: auto;
-      padding: 14px;
+      padding: 15px 52px 8px 14px;
     }
     .card-title {
-      font-size: 17px;
+      font-size: 18px;
     }
     .card-body {
-      padding: 14px;
+      padding: 0 14px 14px;
       gap: 10px;
     }
     .note {
       font-size: 13px;
     }
     .card-actions {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-columns: 1fr 42px;
       gap: 6px;
     }
     .card-actions .btn {
@@ -886,7 +895,7 @@
       font-size: 13px;
     }
     .card-actions .btn-icon {
-      width: auto;
+      width: 42px;
       flex: initial;
     }
     .empty {
@@ -1480,6 +1489,13 @@ tagFilterOptions.addEventListener('click', event => {
   const option = event.target.closest('[data-filter-tag]');
   if (option) toggleTagFilter(option.dataset.filterTag);
 });
+cards.addEventListener('click', event => {
+  const option = event.target.closest('[data-inline-tag-option]');
+  if (option) {
+    event.preventDefault();
+    toggleInlineTag(option.dataset.inlineTagId, option.dataset.inlineTagValue);
+  }
+});
 categoryList.addEventListener('click', event => {
   const categoryButton = event.target.closest('[data-delete-category]');
   if (categoryButton) {
@@ -1761,6 +1777,9 @@ function beginCategoryEdit(event, id) {
 
   const select = document.createElement('select');
   select.className = 'badge-select';
+  const rect = target.getBoundingClientRect();
+  select.style.width = `${Math.ceil(rect.width)}px`;
+  select.style.height = `${Math.max(24, Math.ceil(rect.height))}px`;
   getAllCategories().forEach(category => {
     const option = document.createElement('option');
     option.value = category;
@@ -1984,7 +2003,7 @@ function renderInlineTagEditor(item) {
   const list = getAllTags();
   const options = list.length
     ? list.map(tag => `
-      <button class="tag-choice ${itemTags.has(tag) ? 'active' : ''}" type="button" onclick="toggleInlineTag('${item.id}', ${jsArg(tag)})">
+      <button class="tag-choice ${itemTags.has(tag) ? 'active' : ''}" type="button" data-inline-tag-option data-inline-tag-id="${esc(item.id)}" data-inline-tag-value="${esc(tag)}">
         <span>${esc(tag)}</span>
       </button>
     `).join('')
@@ -2094,7 +2113,7 @@ function render() {
           ${renderInlineTagEditor(item)}
           <div class="card-actions">
             <a class="btn btn-primary" href="${esc(item.url)}" target="_blank" rel="noopener">開啟</a>
-            <button class="btn btn-secondary" type="button" onclick="openDetail('${item.id}')">整理</button>
+            <button class="btn btn-secondary btn-icon organize-btn" type="button" onclick="openDetail('${item.id}')" title="整理" aria-label="整理">⚙</button>
           </div>
         </div>
       </article>
