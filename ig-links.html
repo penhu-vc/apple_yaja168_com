@@ -577,6 +577,18 @@
     padding: 20px;
   }
 
+  .manager-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .manager-tabs .btn.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+  }
+
   .field {
     display: grid;
     gap: 7px;
@@ -594,6 +606,7 @@
     gap: 10px;
   }
 
+  .manager-list,
   .category-list {
     display: grid;
     gap: 8px;
@@ -665,6 +678,14 @@
     color: var(--muted);
     font-size: 12px;
     margin-left: auto;
+  }
+
+  .manager-empty {
+    border: 1px dashed var(--line);
+    border-radius: var(--radius);
+    padding: 14px;
+    color: var(--muted);
+    text-align: center;
   }
 
   .toast {
@@ -983,13 +1004,17 @@
 <div class="modal-backdrop" id="categoryModal" onclick="closeCategoryModalOnBackdrop(event)">
   <div class="modal">
     <div class="modal-head">
-      <h2>編輯分類</h2>
+      <h2>編輯分類與標籤</h2>
       <button class="btn btn-secondary btn-icon" type="button" onclick="closeCategoryManager()">x</button>
     </div>
     <div class="modal-body">
+      <div class="manager-tabs" role="tablist" aria-label="管理項目">
+        <button class="btn btn-secondary active" type="button" id="categoryManagerTab" aria-selected="true">分類</button>
+        <button class="btn btn-secondary" type="button" id="tagManagerTab" aria-selected="false">標籤</button>
+      </div>
       <div class="btn-row">
         <input class="input" id="newCategoryInput" type="text" placeholder="新增分類">
-        <button class="btn btn-primary" type="button" id="addCategoryBtn">新增</button>
+        <button class="btn btn-primary" type="button" id="addManagerItemBtn">新增</button>
       </div>
       <div class="category-list" id="categoryList"></div>
     </div>
@@ -1039,6 +1064,9 @@ const modalOpenLink = document.getElementById('modalOpenLink');
 const modalDeleteBtn = document.getElementById('modalDeleteBtn');
 const categoryList = document.getElementById('categoryList');
 const newCategoryInput = document.getElementById('newCategoryInput');
+const categoryManagerTab = document.getElementById('categoryManagerTab');
+const tagManagerTab = document.getElementById('tagManagerTab');
+const addManagerItemBtn = document.getElementById('addManagerItemBtn');
 const hideDoneBtn = document.getElementById('hideDoneBtn');
 let items = [];
 let categories = [...DEFAULT_CATEGORIES];
@@ -1048,6 +1076,7 @@ let selectedTags = new Set();
 let detailTags = new Set();
 let hideDone = false;
 let filtersOpen = false;
+let managerMode = 'category';
 let saveTimer = null;
 let detailSaveTimer = null;
 let isServerReady = false;
@@ -1188,6 +1217,13 @@ function getHost(url) {
   }
 }
 
+function getSourceLabel(url) {
+  const host = getHost(url);
+  if (/(^|\.)instagram\.com$/i.test(host)) return 'IG';
+  if (/(^|\.)facebook\.com$/i.test(host) || /(^|\.)fb\.com$/i.test(host)) return 'FB';
+  return host || 'link';
+}
+
 function normalizeUrl(value) {
   const raw = String(value || '').trim();
   if (!raw) return '';
@@ -1216,6 +1252,27 @@ function inferTitle(url) {
     return parsed.hostname.replace(/^www\./, '');
   } catch {
     return '未命名連結';
+  }
+}
+
+function isInstagramProfileUrl(url) {
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.replace(/^www\./, '');
+    const parts = parsed.pathname.split('/').filter(Boolean);
+    const reserved = new Set([
+      'p',
+      'reel',
+      'reels',
+      'stories',
+      'explore',
+      'accounts',
+      'direct',
+      'tv'
+    ]);
+    return host === 'instagram.com' && parts.length === 1 && !reserved.has(parts[0].toLowerCase());
+  } catch {
+    return false;
   }
 }
 
@@ -1254,7 +1311,7 @@ form.addEventListener('submit', async event => {
     title: preview.title || inferTitle(url),
     category: '未分類',
     status: 'todo',
-    tags: [],
+    tags: isInstagramProfileUrl(url) ? ['寶藏帳號'] : [],
     note: '',
     thumbnailUrl: preview.thumbnailUrl || '',
     createdAt: Date.now(),
@@ -1335,12 +1392,14 @@ hideDoneBtn.addEventListener('click', () => {
   render();
 });
 document.getElementById('manageCategoriesBtn').addEventListener('click', openCategoryManager);
-document.getElementById('addCategoryBtn').addEventListener('click', addCategory);
+addManagerItemBtn.addEventListener('click', addManagerItem);
+categoryManagerTab.addEventListener('click', () => setManagerMode('category'));
+tagManagerTab.addEventListener('click', () => setManagerMode('tag'));
 document.getElementById('addTagBtn').addEventListener('click', addDetailTag);
 newCategoryInput.addEventListener('keydown', event => {
   if (event.key === 'Enter') {
     event.preventDefault();
-    addCategory();
+    addManagerItem();
   }
 });
 newTagInput.addEventListener('keydown', event => {
@@ -1382,8 +1441,13 @@ tagFilterOptions.addEventListener('click', event => {
   if (option) toggleTagFilter(option.dataset.filterTag);
 });
 categoryList.addEventListener('click', event => {
-  const button = event.target.closest('[data-delete-category]');
-  if (button) deleteCategory(button.dataset.deleteCategory);
+  const categoryButton = event.target.closest('[data-delete-category]');
+  if (categoryButton) {
+    deleteCategory(categoryButton.dataset.deleteCategory);
+    return;
+  }
+  const tagButton = event.target.closest('[data-delete-managed-tag]');
+  if (tagButton) deleteTag(tagButton.dataset.deleteManagedTag);
 });
 
 document.addEventListener('click', event => {
@@ -1492,6 +1556,7 @@ function closeModalOnBackdrop(event) {
 }
 
 function openCategoryManager() {
+  setManagerMode(managerMode);
   renderCategoryManager();
   categoryModal.classList.add('open');
   setTimeout(() => newCategoryInput.focus(), 80);
@@ -1503,6 +1568,27 @@ function closeCategoryManager() {
 
 function closeCategoryModalOnBackdrop(event) {
   if (event.target === categoryModal) closeCategoryManager();
+}
+
+function setManagerMode(mode) {
+  managerMode = mode === 'tag' ? 'tag' : 'category';
+  const isTag = managerMode === 'tag';
+  categoryManagerTab.classList.toggle('active', !isTag);
+  tagManagerTab.classList.toggle('active', isTag);
+  categoryManagerTab.setAttribute('aria-selected', String(!isTag));
+  tagManagerTab.setAttribute('aria-selected', String(isTag));
+  newCategoryInput.placeholder = isTag ? '新增標籤' : '新增分類';
+  newCategoryInput.value = '';
+  renderCategoryManager();
+  newCategoryInput.focus();
+}
+
+function addManagerItem() {
+  if (managerMode === 'tag') {
+    addManagedTag();
+    return;
+  }
+  addCategory();
 }
 
 async function addCategory() {
@@ -1519,6 +1605,22 @@ async function addCategory() {
   render();
   renderCategoryManager();
   showToast('已新增分類');
+}
+
+async function addManagedTag() {
+  const tag = newCategoryInput.value.trim();
+  if (!tag) return;
+  if (getAllTags().includes(tag)) {
+    showToast('標籤已存在');
+    newCategoryInput.value = '';
+    return;
+  }
+  tags = normalizeTagList([...tags, tag]);
+  await saveItems();
+  newCategoryInput.value = '';
+  render();
+  renderCategoryManager();
+  showToast('已新增標籤');
 }
 
 async function deleteCategory(category) {
@@ -1752,9 +1854,14 @@ async function deleteTag(tag) {
   await saveItems();
   renderDetailTags();
   render();
+  renderCategoryManager();
 }
 
 function renderCategoryManager() {
+  if (managerMode === 'tag') {
+    renderTagManager();
+    return;
+  }
   const list = getAllCategories();
   categoryList.innerHTML = list.map(category => {
     const count = items.filter(item => (item.category || '未分類') === category).length;
@@ -1764,6 +1871,24 @@ function renderCategoryManager() {
         <span class="category-name">${esc(category)}</span>
         <span class="category-count">${count} 筆</span>
         <button class="btn btn-danger btn-icon" type="button" ${canDelete ? `data-delete-category="${esc(category)}"` : 'disabled'}>x</button>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderTagManager() {
+  const list = getAllTags();
+  if (!list.length) {
+    categoryList.innerHTML = '<div class="manager-empty">目前沒有標籤</div>';
+    return;
+  }
+  categoryList.innerHTML = list.map(tag => {
+    const count = items.filter(item => (item.tags || []).includes(tag)).length;
+    return `
+      <div class="category-row">
+        <span class="category-name">${esc(tag)}</span>
+        <span class="category-count">${count} 筆</span>
+        <button class="btn btn-danger btn-icon" type="button" data-delete-managed-tag="${esc(tag)}">x</button>
       </div>
     `;
   }).join('');
@@ -1851,7 +1976,7 @@ function render() {
           <div class="meta">
             <button class="badge badge-button ${organized ? 'category' : 'raw'}" type="button" onclick="beginCategoryEdit(event, '${item.id}')" title="點一下修改分類">${esc(item.category || '未分類')}</button>
             <button class="badge badge-button ${item.status === 'done' ? 'done' : 'todo'}" type="button" onclick="toggleStatus('${item.id}')" title="點一下更新狀態">${statusText}</button>
-            <span class="badge">${esc(getHost(item.url) || 'link')}</span>
+            <span class="badge">${esc(getSourceLabel(item.url))}</span>
           </div>
         </div>
         <div class="card-body">
