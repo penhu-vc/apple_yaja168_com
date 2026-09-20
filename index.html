@@ -107,6 +107,7 @@
   @keyframes modalIn { from { opacity:0; transform:scale(.95) translateY(10px); } to { opacity:1; transform:none; } }
   .modal-header { padding: 24px 24px 0; display: flex; justify-content: space-between; align-items: center; }
   .modal-title { font-size: 20px; font-weight: 700; }
+  .modal-header-actions { display: flex; align-items: center; gap: 8px; }
   .modal-close { width: 32px; height: 32px; border: none; background: var(--bg); border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; color: var(--sub); }
   .modal-close:hover { background: var(--border); }
   .modal-body { padding: 24px; }
@@ -115,6 +116,12 @@
   .form-input, .form-textarea { width: 100%; padding: 10px 14px; border: 1.5px solid var(--border); border-radius: 10px; font-size: 14px; font-family: inherit; color: var(--text); background: var(--card); outline: none; transition: border-color .2s; }
   .form-input:focus, .form-textarea:focus { border-color: var(--primary); }
   .form-textarea { resize: vertical; min-height: 72px; line-height: 1.5; }
+  .name-autocomplete { position: relative; }
+  .name-suggestions { position: absolute; z-index: 20; top: calc(100% + 6px); left: 0; right: 0; background: var(--card); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.14); overflow: hidden; }
+  .name-suggestion { width: 100%; padding: 10px 14px; border: 0; border-bottom: 1px solid var(--border); background: var(--card); color: var(--text); font: inherit; text-align: left; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .name-suggestion:last-child { border-bottom: 0; }
+  .name-suggestion:hover, .name-suggestion.active { background: var(--tag-bg); color: var(--tag-text); }
+  .name-suggestion-hint { color: var(--sub); font-size: 12px; white-space: nowrap; }
   .form-hint { font-size: 12px; color: var(--sub); margin-top: 5px; }
   .form-row { display: flex; gap: 10px; }
   .form-row .form-group { flex: 1; }
@@ -211,7 +218,10 @@
   <div class="modal">
     <div class="modal-header">
       <div class="modal-title" id="modalTitle">新增相簿連結</div>
-      <button class="modal-close" onclick="closeModal()">✕</button>
+      <div class="modal-header-actions">
+        <button class="btn btn-primary btn-sm" id="saveBtn" onclick="saveAlbum()">💾 儲存</button>
+        <button class="modal-close" onclick="closeModal()" aria-label="關閉">✕</button>
+      </div>
     </div>
     <div class="modal-body">
       <input type="hidden" id="editId">
@@ -233,7 +243,10 @@
 
       <div class="form-group">
         <label class="form-label">相簿名稱 <span style="color:var(--danger)">*</span></label>
-        <input class="form-input" type="text" id="fieldName" placeholder="例：2024 日本旅遊">
+        <div class="name-autocomplete">
+          <input class="form-input" type="text" id="fieldName" placeholder="例：2024 日本旅遊" autocomplete="off" aria-autocomplete="list" aria-controls="nameSuggestions" aria-expanded="false" oninput="updateNameSuggestions()" onfocus="updateNameSuggestions()" onkeydown="handleNameSuggestionKey(event)">
+          <div class="name-suggestions" id="nameSuggestions" role="listbox" style="display:none"></div>
+        </div>
       </div>
 
       <input type="hidden" id="fieldSharedBy">
@@ -264,10 +277,6 @@
         <div id="refLinksPreview"></div>
       </div>
     </div>
-    <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeModal()">取消</button>
-      <button class="btn btn-primary" id="saveBtn" onclick="saveAlbum()">💾 儲存</button>
-    </div>
   </div>
 </div>
 
@@ -279,6 +288,8 @@ let albums = [];
 let currentView = 'grid';
 let activeTag = null;
 let currentTags = [];
+let nameSuggestions = [];
+let activeNameSuggestion = -1;
 
 const BASE = "https://apple.yaja168.com";
 // ── API ───────────────────────────────────────────────────────
@@ -516,6 +527,7 @@ function openAddModal() {
   document.getElementById('scrapeResult').classList.remove('show');
   document.getElementById('modalTitle').textContent = '新增相簿連結';
   renderTagsPreview();
+  hideNameSuggestions();
   document.getElementById('albumModal').style.display = 'flex';
   setTimeout(() => document.getElementById('fieldLink').focus(), 100);
 }
@@ -538,11 +550,86 @@ function openEditModal(id) {
   document.getElementById('scrapeResult').classList.remove('show');
   document.getElementById('modalTitle').textContent = '編輯相簿連結';
   renderTagsPreview();
+  hideNameSuggestions();
   document.getElementById('albumModal').style.display = 'flex';
 }
 
-function closeModal() { document.getElementById('albumModal').style.display = 'none'; }
+function closeModal() { hideNameSuggestions(); document.getElementById('albumModal').style.display = 'none'; }
 function closeModalOnBackdrop(e) { if (e.target.id === 'albumModal') closeModal(); }
+
+// ── Album name autocomplete ──────────────────────────────────
+function getNameSuggestions(query) {
+  const q = String(query || '').trim().toLocaleLowerCase('zh-TW');
+  if (!q) return [];
+
+  const families = new Map();
+  albums.forEach(album => {
+    const name = String(album.name || '').trim();
+    const match = name.match(/^(.*?)(\d+)(?:\s.*)?$/u);
+    if (!match) return;
+    const stem = match[1];
+    const number = Number(match[2]);
+    if (!stem.trim() || !Number.isFinite(number) || !stem.toLocaleLowerCase('zh-TW').startsWith(q)) return;
+    const current = families.get(stem);
+    if (!current || number > current.number) families.set(stem, { number, source: name });
+  });
+
+  return [...families.entries()]
+    .map(([stem, latest]) => ({ value: `${stem}${latest.number + 1}`, source: latest.source }))
+    .filter(item => item.value.toLocaleLowerCase('zh-TW') !== q)
+    .sort((a, b) => a.value.localeCompare(b.value, 'zh-TW', { numeric: true }))
+    .slice(0, 6);
+}
+
+function updateNameSuggestions() {
+  const input = document.getElementById('fieldName');
+  const panel = document.getElementById('nameSuggestions');
+  nameSuggestions = getNameSuggestions(input.value);
+  activeNameSuggestion = -1;
+  if (!nameSuggestions.length) { hideNameSuggestions(); return; }
+  panel.innerHTML = nameSuggestions.map((item, index) =>
+    `<button type="button" class="name-suggestion" role="option" data-index="${index}" onmousedown="event.preventDefault()" onclick="chooseNameSuggestion(${index})"><span>${esc(item.value)}</span><span class="name-suggestion-hint">接續 ${esc(item.source)}</span></button>`
+  ).join('');
+  panel.style.display = 'block';
+  input.setAttribute('aria-expanded', 'true');
+}
+
+function hideNameSuggestions() {
+  const panel = document.getElementById('nameSuggestions');
+  const input = document.getElementById('fieldName');
+  if (panel) { panel.style.display = 'none'; panel.innerHTML = ''; }
+  if (input) input.setAttribute('aria-expanded', 'false');
+  nameSuggestions = [];
+  activeNameSuggestion = -1;
+}
+
+function chooseNameSuggestion(index) {
+  const item = nameSuggestions[index];
+  if (!item) return;
+  const input = document.getElementById('fieldName');
+  input.value = item.value;
+  hideNameSuggestions();
+  input.focus();
+}
+
+function handleNameSuggestionKey(event) {
+  if (!nameSuggestions.length) return;
+  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+    event.preventDefault();
+    const step = event.key === 'ArrowDown' ? 1 : -1;
+    activeNameSuggestion = (activeNameSuggestion + step + nameSuggestions.length) % nameSuggestions.length;
+    document.querySelectorAll('.name-suggestion').forEach((el, index) => {
+      el.classList.toggle('active', index === activeNameSuggestion);
+      el.setAttribute('aria-selected', index === activeNameSuggestion ? 'true' : 'false');
+    });
+  } else if (event.key === 'Enter' && activeNameSuggestion >= 0) {
+    event.preventDefault();
+    chooseNameSuggestion(activeNameSuggestion);
+  } else if (event.key === 'Escape') {
+    event.stopPropagation();
+    hideNameSuggestions();
+  }
+}
 
 function normalizeTag(v) { return String(v || '').trim().replace(/\s+/g,'_'); }
 function handleTagKey(e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); addTag(); } }
@@ -829,6 +916,9 @@ function toast(msg, type = '') {
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') closeModal();
   if ((e.metaKey||e.ctrlKey) && e.key==='n') { e.preventDefault(); openAddModal(); }
+});
+document.addEventListener('click', e => {
+  if (!e.target.closest('.name-autocomplete')) hideNameSuggestions();
 });
 
 loadAlbums();
