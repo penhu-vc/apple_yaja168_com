@@ -149,7 +149,11 @@
   .scrape-result .item { color: var(--text); }
   .scrape-result .item span { color: var(--sub); }
   .scrape-btn-wrap { display: flex; gap: 8px; }
-  .scrape-btn-wrap input { flex: 1; }
+  .link-input-wrap { position: relative; flex: 1; }
+  .link-input-wrap input { padding-right: 42px; }
+  .link-clear { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 26px; height: 26px; border: 0; border-radius: 50%; background: var(--bg); color: var(--sub); cursor: pointer; font-size: 14px; line-height: 1; }
+  .link-clear:hover { background: var(--border); color: var(--danger); }
+  .link-clear[hidden] { display: none; }
 
   /* Toast */
   .toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 300; display: flex; flex-direction: column; gap: 10px; }
@@ -229,7 +233,10 @@
       <div class="form-group">
         <label class="form-label">iCloud 分享連結 <span style="color:var(--danger)">*</span></label>
         <div class="scrape-btn-wrap">
-          <input class="form-input" type="url" id="fieldLink" placeholder="https://share.icloud.com/photos/...">
+          <div class="link-input-wrap">
+            <input class="form-input" type="url" id="fieldLink" placeholder="https://share.icloud.com/photos/..." oninput="updateLinkClearButton()">
+            <button type="button" class="link-clear" id="clearLinkBtn" onclick="clearLinkField()" aria-label="清除連結" title="清除連結" hidden>✕</button>
+          </div>
           <button class="btn btn-secondary btn-sm" id="scrapeBtn" onclick="scrapeLink()">🔍 自動抓取</button>
         </div>
         <div class="form-hint">貼上連結後點「自動抓取」，可自動補齊相簿資訊</div>
@@ -529,11 +536,25 @@ async function fillLinkFromClipboard() {
     const field = document.getElementById('fieldLink');
     if (field.value) return false;
     field.value = url;
+    updateLinkClearButton();
     toast('已從剪貼簿帶入連結', 'success');
     return true;
   } catch {
     return false;
   }
+}
+
+function updateLinkClearButton() {
+  const field = document.getElementById('fieldLink');
+  const button = document.getElementById('clearLinkBtn');
+  if (field && button) button.hidden = !field.value;
+}
+
+function clearLinkField() {
+  const field = document.getElementById('fieldLink');
+  field.value = '';
+  updateLinkClearButton();
+  field.focus();
 }
 
 function openAddModal() {
@@ -548,6 +569,7 @@ function openAddModal() {
   document.getElementById('modalTitle').textContent = '新增相簿連結';
   renderTagsPreview();
   hideNameSuggestions();
+  updateLinkClearButton();
   document.getElementById('albumModal').style.display = 'flex';
   fillLinkFromClipboard();
   setTimeout(() => document.getElementById('fieldLink').focus(), 100);
@@ -559,6 +581,7 @@ function openEditModal(id) {
   currentTags = [...(a.tags || [])];
   document.getElementById('editId').value = id;
   document.getElementById('fieldLink').value = a.link;
+  updateLinkClearButton();
   document.getElementById('fieldName').value = a.name;
   document.getElementById('fieldSharedBy').value = a.sharedBy || '';
   document.getElementById('fieldExpiry').value = a.expiryDate || '';
