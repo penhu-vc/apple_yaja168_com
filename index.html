@@ -571,11 +571,13 @@ function getNameSuggestions(query) {
     const number = Number(match[2]);
     if (!stem.trim() || !Number.isFinite(number) || !stem.toLocaleLowerCase('zh-TW').startsWith(q)) return;
     const current = families.get(stem);
-    if (!current || number > current.number) families.set(stem, { number, source: name });
+    if (!current || number > current.number) {
+      families.set(stem, { number, source: name, tags: [...(album.tags || [])] });
+    }
   });
 
   return [...families.entries()]
-    .map(([stem, latest]) => ({ value: `${stem}${latest.number + 1}`, source: latest.source }))
+    .map(([stem, latest]) => ({ value: `${stem}${latest.number + 1}`, source: latest.source, tags: latest.tags }))
     .filter(item => item.value.toLocaleLowerCase('zh-TW') !== q)
     .sort((a, b) => a.value.localeCompare(b.value, 'zh-TW', { numeric: true }))
     .slice(0, 6);
@@ -588,7 +590,7 @@ function updateNameSuggestions() {
   activeNameSuggestion = -1;
   if (!nameSuggestions.length) { hideNameSuggestions(); return; }
   panel.innerHTML = nameSuggestions.map((item, index) =>
-    `<button type="button" class="name-suggestion" role="option" data-index="${index}" onmousedown="event.preventDefault()" onclick="chooseNameSuggestion(${index})"><span>${esc(item.value)}</span><span class="name-suggestion-hint">接續 ${esc(item.source)}</span></button>`
+    `<button type="button" class="name-suggestion" role="option" data-index="${index}" onmousedown="event.preventDefault()" onclick="chooseNameSuggestion(${index})"><span>${esc(item.value)}</span><span class="name-suggestion-hint">接續 ${esc(item.source)}${item.tags.length ? ` · 套用 ${item.tags.length} 個標籤` : ''}</span></button>`
   ).join('');
   panel.style.display = 'block';
   input.setAttribute('aria-expanded', 'true');
@@ -608,6 +610,8 @@ function chooseNameSuggestion(index) {
   if (!item) return;
   const input = document.getElementById('fieldName');
   input.value = item.value;
+  currentTags = [...item.tags];
+  renderTagsPreview();
   hideNameSuggestions();
   input.focus();
 }
