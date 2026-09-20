@@ -516,6 +516,26 @@ function setView(v) {
 }
 
 // ── Modal ─────────────────────────────────────────────────────
+function extractClipboardUrl(text) {
+  const match = String(text || '').trim().match(/https?:\/\/[^\s]+/i);
+  return match ? match[0].replace(/[),.;，。]+$/u, '') : '';
+}
+
+async function fillLinkFromClipboard() {
+  if (!navigator.clipboard?.readText) return false;
+  try {
+    const url = extractClipboardUrl(await navigator.clipboard.readText());
+    if (!url) return false;
+    const field = document.getElementById('fieldLink');
+    if (field.value) return false;
+    field.value = url;
+    toast('已從剪貼簿帶入連結', 'success');
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function openAddModal() {
   currentTags = [];
   currentRefLinks = [];
@@ -529,6 +549,7 @@ function openAddModal() {
   renderTagsPreview();
   hideNameSuggestions();
   document.getElementById('albumModal').style.display = 'flex';
+  fillLinkFromClipboard();
   setTimeout(() => document.getElementById('fieldLink').focus(), 100);
 }
 
